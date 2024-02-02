@@ -1,0 +1,15 @@
+{
+  "name": "ci",
+  "sdk": "go",
+  "dependencies": [
+    {
+      "name": "inline-python",
+      "source": "modules/inline-python"
+    }
+  ],
+  "root-for": [
+    {
+      "source": "."
+    }
+  ]
+}
