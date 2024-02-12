@@ -4,7 +4,7 @@
   "dependencies": [
     {
       "name": "inline-python",
-      "source": "../modules/inline-python"
+      "source": "../inline-python"
     }
   ]
 }
