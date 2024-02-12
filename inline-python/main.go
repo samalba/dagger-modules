@@ -9,11 +9,12 @@ type InlinePython struct {
 	Ctr *Container
 }
 
-func New(baseImage Optional[string]) *InlinePython {
-	return &InlinePython{
-		Ctr: dag.Container().From(baseImage.GetOr("python:3-alpine")),
-	}
-}
+// FIXME: Optional not supported anymore, find another way to support it
+// func New(baseImage Optional[string]) *InlinePython {
+// 	return &InlinePython{
+// 		Ctr: dag.Container().From(baseImage.GetOr("python:3-alpine")),
+// 	}
+// }
 
 // fixme: add usage
 func (m *InlinePython) WithPackage(name string) (*InlinePython, error) {

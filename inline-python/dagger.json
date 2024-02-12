@@ -1,9 +1,5 @@
 {
   "name": "inline-python",
   "sdk": "go",
-  "root-for": [
-    {
-      "source": "."
-    }
-  ]
+  "engineVersion": "v0.9.9"
 }
