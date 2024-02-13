@@ -1,0 +1,6 @@
+{
+  "name": "remote-dagger",
+  "sdk": "go",
+  "source": ".",
+  "engineVersion": "v0.9.10"
+}
