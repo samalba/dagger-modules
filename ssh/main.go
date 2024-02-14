@@ -5,13 +5,13 @@ import (
 	"strconv"
 )
 
-type Ssh struct {
+type SSH struct {
 	BaseCtr     *Container
 	Destination string
-	Opts        []SshOpts
+	Opts        []SSHOpts
 }
 
-type SshOpts struct {
+type SSHOpts struct {
 	IdentityFile *Secret
 	Port         int
 	Login        string
@@ -32,24 +32,24 @@ type SshOpts struct {
 // 	return ssh, nil
 // }
 
-func New(destination string, identityFile *Secret) (*Ssh, error) {
+func New(destination string, identityFile *Secret) (*SSH, error) {
 	baseCtr := dag.Container().From("alpine:3").WithExec([]string{"apk", "add", "--no-cache", "openssh-client"})
 
 	// FIXME: Currently only supporting few commands, see comments and FIXME above
-	opts := SshOpts{
+	opts := SSHOpts{
 		IdentityFile: identityFile,
 	}
 
-	ssh := &Ssh{
+	ssh := &SSH{
 		Destination: destination,
-		Opts:        []SshOpts{opts},
+		Opts:        []SSHOpts{opts},
 		BaseCtr:     baseCtr,
 	}
 	return ssh, nil
 }
 
 // example usage: "dagger call --destination USER@HOST --identity-file file:${HOME}/.ssh/id_ed25519 command --args whoami stdout"
-func (m *Ssh) Command(args ...string) *Container {
+func (m *SSH) Command(args []string) *Container {
 	ctr := m.BaseCtr
 
 	execArgs := []string{"/usr/bin/ssh", "-o", "StrictHostKeyChecking=no"}

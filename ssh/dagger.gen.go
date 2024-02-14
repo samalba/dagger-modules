@@ -1210,6 +1210,40 @@ func (r *Container) WithFile(path string, source *File, opts ...ContainerWithFil
 	}
 }
 
+// ContainerWithFilesOpts contains options for Container.WithFiles
+type ContainerWithFilesOpts struct {
+	// Permission given to the copied files (e.g., 0600).
+	Permissions int
+	// A user:group to set for the files.
+	//
+	// The user and group can either be an ID (1000:1000) or a name (foo:bar).
+	//
+	// If the group is omitted, it defaults to the same as the user.
+	Owner string
+}
+
+// Retrieves this container plus the contents of the given files copied to the given path.
+func (r *Container) WithFiles(path string, sources []*File, opts ...ContainerWithFilesOpts) *Container {
+	q := r.q.Select("withFiles")
+	for i := len(opts) - 1; i >= 0; i-- {
+		// `permissions` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Permissions) {
+			q = q.Arg("permissions", opts[i].Permissions)
+		}
+		// `owner` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Owner) {
+			q = q.Arg("owner", opts[i].Owner)
+		}
+	}
+	q = q.Arg("path", path)
+	q = q.Arg("sources", sources)
+
+	return &Container{
+		q: q,
+		c: r.c,
+	}
+}
+
 // Indicate that subsequent operations should be featured more prominently in the UI.
 func (r *Container) WithFocus() *Container {
 	q := r.q.Select("withFocus")
@@ -2116,6 +2150,30 @@ func (r *Directory) WithFile(path string, source *File, opts ...DirectoryWithFil
 	}
 	q = q.Arg("path", path)
 	q = q.Arg("source", source)
+
+	return &Directory{
+		q: q,
+		c: r.c,
+	}
+}
+
+// DirectoryWithFilesOpts contains options for Directory.WithFiles
+type DirectoryWithFilesOpts struct {
+	// Permission given to the copied files (e.g., 0600).
+	Permissions int
+}
+
+// Retrieves this directory plus the contents of the given files copied to the given path.
+func (r *Directory) WithFiles(path string, sources []*File, opts ...DirectoryWithFilesOpts) *Directory {
+	q := r.q.Select("withFiles")
+	for i := len(opts) - 1; i >= 0; i-- {
+		// `permissions` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Permissions) {
+			q = q.Arg("permissions", opts[i].Permissions)
+		}
+	}
+	q = q.Arg("path", path)
+	q = q.Arg("sources", sources)
 
 	return &Directory{
 		q: q,
@@ -6621,12 +6679,34 @@ func (c errorWrappedClient) MakeRequest(ctx context.Context, req *graphql.Reques
 	return nil
 }
 
-func (r *Ssh) UnmarshalJSON(bs []byte) error {
-	var concrete struct{}
+func (r *SSH) UnmarshalJSON(bs []byte) error {
+	var concrete struct {
+		BaseCtr     *Container
+		Destination string
+		Opts        []SSHOpts
+	}
 	err := json.Unmarshal(bs, &concrete)
 	if err != nil {
 		return err
 	}
+	r.BaseCtr = concrete.BaseCtr
+	r.Destination = concrete.Destination
+	r.Opts = concrete.Opts
+	return nil
+}
+func (r *SSHOpts) UnmarshalJSON(bs []byte) error {
+	var concrete struct {
+		IdentityFile *Secret
+		Port         int
+		Login        string
+	}
+	err := json.Unmarshal(bs, &concrete)
+	if err != nil {
+		return err
+	}
+	r.IdentityFile = concrete.IdentityFile
+	r.Port = concrete.Port
+	r.Login = concrete.Login
 	return nil
 }
 
@@ -6689,61 +6769,68 @@ func main() {
 
 func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName string, inputArgs map[string][]byte) (_ any, err error) {
 	switch parentName {
-	case "Ssh":
+	case "SSH":
 		switch fnName {
-		case "ContainerEcho":
-			var parent Ssh
+		case "Command":
+			var parent SSH
 			err = json.Unmarshal(parentJSON, &parent)
 			if err != nil {
 				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
 			}
-			var stringArg string
-			if inputArgs["stringArg"] != nil {
-				err = json.Unmarshal([]byte(inputArgs["stringArg"]), &stringArg)
+			var args []string
+			if inputArgs["args"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["args"]), &args)
 				if err != nil {
-					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg stringArg", err))
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg args", err))
 				}
 			}
-			return (*Ssh).ContainerEcho(&parent, stringArg), nil
-		case "GrepDir":
-			var parent Ssh
+			return (*SSH).Command(&parent, args...), nil
+		case "":
+			var parent SSH
 			err = json.Unmarshal(parentJSON, &parent)
 			if err != nil {
 				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
 			}
-			var directoryArg *Directory
-			if inputArgs["directoryArg"] != nil {
-				err = json.Unmarshal([]byte(inputArgs["directoryArg"]), &directoryArg)
+			var destination string
+			if inputArgs["destination"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["destination"]), &destination)
 				if err != nil {
-					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg directoryArg", err))
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg destination", err))
 				}
 			}
-			var pattern string
-			if inputArgs["pattern"] != nil {
-				err = json.Unmarshal([]byte(inputArgs["pattern"]), &pattern)
+			var identityFile *Secret
+			if inputArgs["identityFile"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["identityFile"]), &identityFile)
 				if err != nil {
-					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg pattern", err))
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg identityFile", err))
 				}
 			}
-			return (*Ssh).GrepDir(&parent, ctx, directoryArg, pattern)
+			return New(destination, identityFile)
 		default:
 			return nil, fmt.Errorf("unknown function %s", fnName)
 		}
 	case "":
 		return dag.Module().
 			WithObject(
-				dag.TypeDef().WithObject("Ssh").
+				dag.TypeDef().WithObject("SSH").
 					WithFunction(
-						dag.Function("ContainerEcho",
+						dag.Function("Command",
 							dag.TypeDef().WithObject("Container")).
-							WithDescription("example usage: \"dagger call container-echo --string-arg yo stdout\"").
-							WithArg("stringArg", dag.TypeDef().WithKind(StringKind))).
-					WithFunction(
-						dag.Function("GrepDir",
-							dag.TypeDef().WithKind(StringKind)).
-							WithDescription("example usage: \"dagger call grep-dir --directory-arg . --pattern GrepDir\"").
-							WithArg("directoryArg", dag.TypeDef().WithObject("Directory")).
-							WithArg("pattern", dag.TypeDef().WithKind(StringKind)))), nil
+							WithDescription("example usage: \"dagger call --destination USER@HOST --identity-file file:${HOME}/.ssh/id_ed25519 command --args whoami stdout\"").
+							WithArg("args", dag.TypeDef().WithListOf(dag.TypeDef().WithKind(StringKind)))).
+					WithField("BaseCtr", dag.TypeDef().WithObject("Container")).
+					WithField("Destination", dag.TypeDef().WithKind(StringKind)).
+					WithField("Opts", dag.TypeDef().WithListOf(dag.TypeDef().WithObject("SSHOpts"))).
+					WithConstructor(
+						dag.Function("New",
+							dag.TypeDef().WithObject("SSH")).
+							WithArg("destination", dag.TypeDef().WithKind(StringKind)).
+							WithArg("identityFile", dag.TypeDef().WithObject("Secret")))).
+			WithObject(
+				dag.TypeDef().WithObject("SSHOpts").
+					WithField("IdentityFile", dag.TypeDef().WithObject("Secret")).
+					WithField("Port", dag.TypeDef().WithKind(IntegerKind)).
+					WithField("Login", dag.TypeDef().WithKind(StringKind))), nil
 	default:
 		return nil, fmt.Errorf("unknown object %s", parentName)
 	}

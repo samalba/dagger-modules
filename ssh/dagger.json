@@ -1,5 +1,6 @@
 {
   "name": "ssh",
   "sdk": "go",
-  "engineVersion": "v0.9.9"
+  "source": ".",
+  "engineVersion": "v0.9.10"
 }
