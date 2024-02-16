@@ -1,3 +1,4 @@
+// Run a command on a remote machine using SSH and return the result
 package main
 
 import (
