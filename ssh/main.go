@@ -50,7 +50,7 @@ func New(destination string, identityFile *Secret) (*SSH, error) {
 }
 
 // example usage: "dagger call --destination USER@HOST --identity-file file:${HOME}/.ssh/id_ed25519 command --args whoami stdout"
-func (m *SSH) Command(args []string) *Container {
+func (m *SSH) makeCtrArgs() (*Container, []string) {
 	ctr := m.BaseCtr
 
 	execArgs := []string{"/usr/bin/ssh", "-o", "StrictHostKeyChecking=no"}
@@ -71,8 +71,22 @@ func (m *SSH) Command(args []string) *Container {
 
 	// add the destination address after the ssh args
 	execArgs = append(execArgs, m.Destination)
+
+	return ctr, execArgs
+}
+
+// example usage: "dagger call --destination USER@HOST --identity-file file:${HOME}/.ssh/id_ed25519 command --args whoami stdout"
+func (m *SSH) Command(args []string) *Container {
+	ctr, execArgs := m.makeCtrArgs()
 	// add the command args
 	execArgs = append(execArgs, args...)
 
 	return ctr.WithExec(execArgs)
+}
+
+// execute a remote script. similar to `command', but the script is piped to ssh (shell escaping safe)
+func (m *SSH) Script(content string) *Container {
+	ctr, execArgs := m.makeCtrArgs()
+
+	return ctr.WithExec(execArgs, ContainerWithExecOpts{Stdin: content})
 }
