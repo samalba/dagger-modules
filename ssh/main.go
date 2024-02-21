@@ -3,13 +3,16 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strconv"
+	"time"
 )
 
 type SSH struct {
 	BaseCtr     *Container
 	Destination string
 	Opts        []SSHOpts
+	Cache       bool
 }
 
 type SSHOpts struct {
@@ -33,7 +36,15 @@ type SSHOpts struct {
 // 	return ssh, nil
 // }
 
-func New(destination string, identityFile *Secret) (*SSH, error) {
+func New(
+	// Destination to connect to (SSH destination)
+	destination string,
+	// Private key to connect
+	identityFile *Secret,
+	// Enable caching of commands
+	// +optional
+	// +default=false
+	cache bool) (*SSH, error) {
 	baseCtr := dag.Container().From("alpine:3").WithExec([]string{"apk", "add", "--no-cache", "openssh-client"})
 
 	// FIXME: Currently only supporting few commands, see comments and FIXME above
@@ -45,6 +56,7 @@ func New(destination string, identityFile *Secret) (*SSH, error) {
 		Destination: destination,
 		Opts:        []SSHOpts{opts},
 		BaseCtr:     baseCtr,
+		Cache:       cache,
 	}
 	return ssh, nil
 }
@@ -67,6 +79,11 @@ func (m *SSH) makeCtrArgs() (*Container, []string) {
 		if o.Port > 0 {
 			execArgs = append(execArgs, "-p", strconv.Itoa(o.Port))
 		}
+	}
+
+	// disables the cache by default (given we're calling remote commands)
+	if m.Cache == false {
+		ctr = ctr.WithEnvVariable("_SSH_CACHE_BUSTER", fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano()))
 	}
 
 	// add the destination address after the ssh args
