@@ -501,12 +501,12 @@ func convertSlice[I any, O any](in []I, f func(I) O) []O {
 	return out
 }
 
-func (r Ci) MarshalJSON() ([]byte, error) {
+func (r Bot) MarshalJSON() ([]byte, error) {
 	var concrete struct{}
 	return json.Marshal(&concrete)
 }
 
-func (r *Ci) UnmarshalJSON(bs []byte) error {
+func (r *Bot) UnmarshalJSON(bs []byte) error {
 	var concrete struct{}
 	err := json.Unmarshal(bs, &concrete)
 	if err != nil {
@@ -574,10 +574,10 @@ func main() {
 
 func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName string, inputArgs map[string][]byte) (_ any, err error) {
 	switch parentName {
-	case "Ci":
+	case "Bot":
 		switch fnName {
 		case "ContainerEcho":
-			var parent Ci
+			var parent Bot
 			err = json.Unmarshal(parentJSON, &parent)
 			if err != nil {
 				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
@@ -589,9 +589,9 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg stringArg", err))
 				}
 			}
-			return (*Ci).ContainerEcho(&parent, stringArg), nil
+			return (*Bot).ContainerEcho(&parent, stringArg), nil
 		case "GrepDir":
-			var parent Ci
+			var parent Bot
 			err = json.Unmarshal(parentJSON, &parent)
 			if err != nil {
 				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
@@ -610,15 +610,15 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg pattern", err))
 				}
 			}
-			return (*Ci).GrepDir(&parent, ctx, directoryArg, pattern)
+			return (*Bot).GrepDir(&parent, ctx, directoryArg, pattern)
 		default:
 			return nil, fmt.Errorf("unknown function %s", fnName)
 		}
 	case "":
 		return dag.Module().
-			WithDescription("A generated module for Ci functions\n\nThis module has been generated via dagger init and serves as a reference to\nbasic module structure as you get started with Dagger.\n\nTwo functions have been pre-created. You can modify, delete, or add to them,\nas needed. They demonstrate usage of arguments and return types using simple\necho and grep commands. The functions can be called from the dagger CLI or\nfrom one of the SDKs.\n\nThe first line in this comment block is a short description line and the\nrest is a long description with more detail on the module's purpose or usage,\nif appropriate. All modules should have a short description.\n").
+			WithDescription("A generated module for Bot functions\n\nThis module has been generated via dagger init and serves as a reference to\nbasic module structure as you get started with Dagger.\n\nTwo functions have been pre-created. You can modify, delete, or add to them,\nas needed. They demonstrate usage of arguments and return types using simple\necho and grep commands. The functions can be called from the dagger CLI or\nfrom one of the SDKs.\n\nThe first line in this comment block is a short description line and the\nrest is a long description with more detail on the module's purpose or usage,\nif appropriate. All modules should have a short description.\n").
 			WithObject(
-				dag.TypeDef().WithObject("Ci").
+				dag.TypeDef().WithObject("Bot").
 					WithFunction(
 						dag.Function("ContainerEcho",
 							dag.TypeDef().WithObject("Container")).

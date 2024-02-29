@@ -1,0 +1,23 @@
+name: Bot
+
+# these below will enable ALL GitHub events
+#on: [branch_protection_rule, check_run, check_suite, create, delete, deployment, deployment_status, discussion, discussion_comment, fork, gollum, issue_comment, issues, label, merge_group, milestone, page_build, project, project_card, project_column, public, pull_request, pull_request_review, pull_request_review_comment, pull_request_target, push, registry_package, release, repository_dispatch, schedule, status, watch, workflow_call, workflow_dispatch]
+# For the demo just do `issue_comment`
+on: [issue_comment]
+jobs:
+  handle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dagger/dagger-for-github@v5
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          version: "0.9.10"
+          verb: call
+          module: ./bot
+          args: |
+            handle \
+            --github-token env:GITHUB_TOKEN \
+            --event-name ${{ github.event_name }} \
+            --event-file ${{ github.event_path }} \

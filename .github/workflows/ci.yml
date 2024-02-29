@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  # Enable manual trigger for easy debugging
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dagger/dagger-for-github@v5
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          version: "0.9.10"
+          verb: call
+          module: ./ci
+          args: |
+            handle \
+            --github-token env:GITHUB_TOKEN \
+            --event-name ${{ github.event_name }} \
+            --event-file ${{ github.event_path }} \
