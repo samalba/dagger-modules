@@ -61,6 +61,9 @@ type GitRefID = dagger.GitRefID
 // The `GitRepositoryID` scalar type represents an identifier for an object of type GitRepository.
 type GitRepositoryID = dagger.GitRepositoryID
 
+// The `GithubCommentID` scalar type represents an identifier for an object of type GithubComment.
+type GithubCommentID = dagger.GithubCommentID
+
 // The `InputTypeDefID` scalar type represents an identifier for an object of type InputTypeDef.
 type InputTypeDefID = dagger.InputTypeDefID
 
@@ -294,6 +297,8 @@ type GitRefTreeOpts = dagger.GitRefTreeOpts
 // A git repository.
 type GitRepository = dagger.GitRepository
 
+type GithubComment = dagger.GithubComment
+
 // A graphql input type, which is essentially just a group of named args.
 // This is currently only used to represent pre-existing usage of graphql input types
 // in the core API. It is not used by user modules and shouldn't ever be as user
@@ -344,6 +349,9 @@ type DirectoryOpts = dagger.DirectoryOpts
 
 // GitOpts contains options for Client.Git
 type GitOpts = dagger.GitOpts
+
+// GithubCommentOpts contains options for Client.GithubComment
+type GithubCommentOpts = dagger.GithubCommentOpts
 
 // HTTPOpts contains options for Client.HTTP
 type HTTPOpts = dagger.HTTPOpts
@@ -576,60 +584,47 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 	switch parentName {
 	case "Ci":
 		switch fnName {
-		case "ContainerEcho":
+		case "Handle":
 			var parent Ci
 			err = json.Unmarshal(parentJSON, &parent)
 			if err != nil {
 				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
 			}
-			var stringArg string
-			if inputArgs["stringArg"] != nil {
-				err = json.Unmarshal([]byte(inputArgs["stringArg"]), &stringArg)
+			var githubToken *Secret
+			if inputArgs["githubToken"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["githubToken"]), &githubToken)
 				if err != nil {
-					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg stringArg", err))
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg githubToken", err))
 				}
 			}
-			return (*Ci).ContainerEcho(&parent, stringArg), nil
-		case "GrepDir":
-			var parent Ci
-			err = json.Unmarshal(parentJSON, &parent)
-			if err != nil {
-				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
-			}
-			var directoryArg *Directory
-			if inputArgs["directoryArg"] != nil {
-				err = json.Unmarshal([]byte(inputArgs["directoryArg"]), &directoryArg)
+			var eventName string
+			if inputArgs["eventName"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["eventName"]), &eventName)
 				if err != nil {
-					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg directoryArg", err))
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg eventName", err))
 				}
 			}
-			var pattern string
-			if inputArgs["pattern"] != nil {
-				err = json.Unmarshal([]byte(inputArgs["pattern"]), &pattern)
+			var eventFile *File
+			if inputArgs["eventFile"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["eventFile"]), &eventFile)
 				if err != nil {
-					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg pattern", err))
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg eventFile", err))
 				}
 			}
-			return (*Ci).GrepDir(&parent, ctx, directoryArg, pattern)
+			return nil, (*Ci).Handle(&parent, ctx, githubToken, eventName, eventFile)
 		default:
 			return nil, fmt.Errorf("unknown function %s", fnName)
 		}
 	case "":
 		return dag.Module().
-			WithDescription("A generated module for Ci functions\n\nThis module has been generated via dagger init and serves as a reference to\nbasic module structure as you get started with Dagger.\n\nTwo functions have been pre-created. You can modify, delete, or add to them,\nas needed. They demonstrate usage of arguments and return types using simple\necho and grep commands. The functions can be called from the dagger CLI or\nfrom one of the SDKs.\n\nThe first line in this comment block is a short description line and the\nrest is a long description with more detail on the module's purpose or usage,\nif appropriate. All modules should have a short description.\n").
 			WithObject(
 				dag.TypeDef().WithObject("Ci").
 					WithFunction(
-						dag.Function("ContainerEcho",
-							dag.TypeDef().WithObject("Container")).
-							WithDescription("Returns a container that echoes whatever string argument is provided").
-							WithArg("stringArg", dag.TypeDef().WithKind(StringKind))).
-					WithFunction(
-						dag.Function("GrepDir",
-							dag.TypeDef().WithKind(StringKind)).
-							WithDescription("Returns lines that match a pattern in the files of the provided Directory").
-							WithArg("directoryArg", dag.TypeDef().WithObject("Directory")).
-							WithArg("pattern", dag.TypeDef().WithKind(StringKind)))), nil
+						dag.Function("Handle",
+							dag.TypeDef().WithKind(VoidKind).WithOptional(true)).
+							WithArg("githubToken", dag.TypeDef().WithObject("Secret")).
+							WithArg("eventName", dag.TypeDef().WithKind(StringKind)).
+							WithArg("eventFile", dag.TypeDef().WithObject("File")))), nil
 	default:
 		return nil, fmt.Errorf("unknown object %s", parentName)
 	}

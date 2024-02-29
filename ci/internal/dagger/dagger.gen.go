@@ -150,6 +150,9 @@ type GitRefID string
 // The `GitRepositoryID` scalar type represents an identifier for an object of type GitRepository.
 type GitRepositoryID string
 
+// The `GithubCommentID` scalar type represents an identifier for an object of type GithubComment.
+type GithubCommentID string
+
 // The `InputTypeDefID` scalar type represents an identifier for an object of type InputTypeDef.
 type InputTypeDefID string
 
@@ -3562,6 +3565,181 @@ func (r *GitRepository) Tag(name string) *GitRef {
 	}
 }
 
+type GithubComment struct {
+	Query  *querybuilder.Selection
+	Client graphql.Client
+
+	commit    *string
+	create    *string
+	delete    *Void
+	id        *GithubCommentID
+	issue     *int
+	messageId *string
+	owner     *string
+	react     *Void
+	repo      *string
+}
+
+func (r *GithubComment) Commit(ctx context.Context) (string, error) {
+	if r.commit != nil {
+		return *r.commit, nil
+	}
+	q := r.Query.Select("commit")
+
+	var response string
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.Client)
+}
+
+// example usage: "dagger call --github-token env:GITHUB_TOKEN --owner aluzzardi --repo daggerverse --issue 1 comment --body "hello world"
+func (r *GithubComment) Create(ctx context.Context, body string) (string, error) {
+	if r.create != nil {
+		return *r.create, nil
+	}
+	q := r.Query.Select("create")
+	q = q.Arg("body", body)
+
+	var response string
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.Client)
+}
+
+// example usage: "dagger call --github-token env:GITHUB_TOKEN --owner aluzzardi --repo daggerverse --issue 1 delete
+func (r *GithubComment) Delete(ctx context.Context) (Void, error) {
+	if r.delete != nil {
+		return *r.delete, nil
+	}
+	q := r.Query.Select("delete")
+
+	var response Void
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.Client)
+}
+
+func (r *GithubComment) GithubToken() *Secret {
+	q := r.Query.Select("githubToken")
+
+	return &Secret{
+		Query:  q,
+		Client: r.Client,
+	}
+}
+
+// A unique identifier for this GithubComment.
+func (r *GithubComment) ID(ctx context.Context) (GithubCommentID, error) {
+	if r.id != nil {
+		return *r.id, nil
+	}
+	q := r.Query.Select("id")
+
+	var response GithubCommentID
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.Client)
+}
+
+// XXX_GraphQLType is an internal function. It returns the native GraphQL type name
+func (r *GithubComment) XXX_GraphQLType() string {
+	return "GithubComment"
+}
+
+// XXX_GraphQLIDType is an internal function. It returns the native GraphQL type name for the ID of this object
+func (r *GithubComment) XXX_GraphQLIDType() string {
+	return "GithubCommentID"
+}
+
+// XXX_GraphQLID is an internal function. It returns the underlying type ID
+func (r *GithubComment) XXX_GraphQLID(ctx context.Context) (string, error) {
+	id, err := r.ID(ctx)
+	if err != nil {
+		return "", err
+	}
+	return string(id), nil
+}
+
+func (r *GithubComment) MarshalJSON() ([]byte, error) {
+	id, err := r.ID(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(id)
+}
+func (r *GithubComment) UnmarshalJSON(bs []byte) error {
+	var id string
+	err := json.Unmarshal(bs, &id)
+	if err != nil {
+		return err
+	}
+	*r = *dag.LoadGithubCommentFromID(GithubCommentID(id))
+	return nil
+}
+
+func (r *GithubComment) Issue(ctx context.Context) (int, error) {
+	if r.issue != nil {
+		return *r.issue, nil
+	}
+	q := r.Query.Select("issue")
+
+	var response int
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.Client)
+}
+
+func (r *GithubComment) MessageID(ctx context.Context) (string, error) {
+	if r.messageId != nil {
+		return *r.messageId, nil
+	}
+	q := r.Query.Select("messageId")
+
+	var response string
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.Client)
+}
+
+func (r *GithubComment) Owner(ctx context.Context) (string, error) {
+	if r.owner != nil {
+		return *r.owner, nil
+	}
+	q := r.Query.Select("owner")
+
+	var response string
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.Client)
+}
+
+// example usage: "dagger call --github-token env:GITHUB_TOKEN --owner aluzzardi --repo daggerverse --issue 1 reaction +1
+// The kind should be one of the following values: "+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", or "eyes".
+func (r *GithubComment) React(ctx context.Context, kind string) (Void, error) {
+	if r.react != nil {
+		return *r.react, nil
+	}
+	q := r.Query.Select("react")
+	q = q.Arg("kind", kind)
+
+	var response Void
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.Client)
+}
+
+func (r *GithubComment) Repo(ctx context.Context) (string, error) {
+	if r.repo != nil {
+		return *r.repo, nil
+	}
+	q := r.Query.Select("repo")
+
+	var response string
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.Client)
+}
+
 // A graphql input type, which is essentially just a group of named args.
 // This is currently only used to represent pre-existing usage of graphql input types
 // in the core API. It is not used by user modules and shouldn't ever be as user
@@ -5354,6 +5532,42 @@ func (r *Client) Git(url string, opts ...GitOpts) *GitRepository {
 	}
 }
 
+// GithubCommentOpts contains options for Client.GithubComment
+type GithubCommentOpts struct {
+	MessageID string
+
+	Issue int
+
+	Commit string
+}
+
+func (r *Client) GithubComment(githubToken *Secret, owner string, repo string, opts ...GithubCommentOpts) *GithubComment {
+	assertNotNil("githubToken", githubToken)
+	q := r.Query.Select("githubComment")
+	for i := len(opts) - 1; i >= 0; i-- {
+		// `messageId` optional argument
+		if !querybuilder.IsZeroValue(opts[i].MessageID) {
+			q = q.Arg("messageId", opts[i].MessageID)
+		}
+		// `issue` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Issue) {
+			q = q.Arg("issue", opts[i].Issue)
+		}
+		// `commit` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Commit) {
+			q = q.Arg("commit", opts[i].Commit)
+		}
+	}
+	q = q.Arg("githubToken", githubToken)
+	q = q.Arg("owner", owner)
+	q = q.Arg("repo", repo)
+
+	return &GithubComment{
+		Query:  q,
+		Client: r.Client,
+	}
+}
+
 // HTTPOpts contains options for Client.HTTP
 type HTTPOpts struct {
 	// A service which must be started before the URL is fetched.
@@ -5537,6 +5751,17 @@ func (r *Client) LoadGitRepositoryFromID(id GitRepositoryID) *GitRepository {
 	q = q.Arg("id", id)
 
 	return &GitRepository{
+		Query:  q,
+		Client: r.Client,
+	}
+}
+
+// Load a GithubComment from its ID.
+func (r *Client) LoadGithubCommentFromID(id GithubCommentID) *GithubComment {
+	q := r.Query.Select("loadGithubCommentFromID")
+	q = q.Arg("id", id)
+
+	return &GithubComment{
 		Query:  q,
 		Client: r.Client,
 	}
