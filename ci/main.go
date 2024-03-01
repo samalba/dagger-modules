@@ -42,7 +42,14 @@ func (m *Ci) Handle(ctx context.Context, githubToken *Secret, eventName string, 
 			if _, err := comment.React(ctx, "rocket"); err != nil {
 				return err
 			}
+
+			// FIXME: call CI
 		}
+
+	// Push event
+	case *github.PushEvent:
+		// FIXME: call CI
+		return nil
 
 	// Issue Comment
 	case *github.IssueCommentEvent:
