@@ -509,20 +509,6 @@ func convertSlice[I any, O any](in []I, f func(I) O) []O {
 	return out
 }
 
-func (r Ci) MarshalJSON() ([]byte, error) {
-	var concrete struct{}
-	return json.Marshal(&concrete)
-}
-
-func (r *Ci) UnmarshalJSON(bs []byte) error {
-	var concrete struct{}
-	err := json.Unmarshal(bs, &concrete)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func main() {
 	ctx := context.Background()
 
@@ -582,49 +568,8 @@ func main() {
 
 func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName string, inputArgs map[string][]byte) (_ any, err error) {
 	switch parentName {
-	case "Ci":
-		switch fnName {
-		case "Handle":
-			var parent Ci
-			err = json.Unmarshal(parentJSON, &parent)
-			if err != nil {
-				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
-			}
-			var githubToken *Secret
-			if inputArgs["githubToken"] != nil {
-				err = json.Unmarshal([]byte(inputArgs["githubToken"]), &githubToken)
-				if err != nil {
-					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg githubToken", err))
-				}
-			}
-			var eventName string
-			if inputArgs["eventName"] != nil {
-				err = json.Unmarshal([]byte(inputArgs["eventName"]), &eventName)
-				if err != nil {
-					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg eventName", err))
-				}
-			}
-			var eventFile *File
-			if inputArgs["eventFile"] != nil {
-				err = json.Unmarshal([]byte(inputArgs["eventFile"]), &eventFile)
-				if err != nil {
-					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg eventFile", err))
-				}
-			}
-			return nil, (*Ci).Handle(&parent, ctx, githubToken, eventName, eventFile)
-		default:
-			return nil, fmt.Errorf("unknown function %s", fnName)
-		}
 	case "":
-		return dag.Module().
-			WithObject(
-				dag.TypeDef().WithObject("Ci").
-					WithFunction(
-						dag.Function("Handle",
-							dag.TypeDef().WithKind(VoidKind).WithOptional(true)).
-							WithArg("githubToken", dag.TypeDef().WithObject("Secret")).
-							WithArg("eventName", dag.TypeDef().WithKind(StringKind)).
-							WithArg("eventFile", dag.TypeDef().WithObject("File")))), nil
+		return dag.Module(), nil
 	default:
 		return nil, fmt.Errorf("unknown object %s", parentName)
 	}
