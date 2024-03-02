@@ -9,11 +9,12 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  issue_comment:
   # Enable manual trigger for easy debugging
   workflow_dispatch:
 
 jobs:
-  test:
+  dagger:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -22,6 +23,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           version: "0.10.0"
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
           verb: call
           module: ./ci
           args: |
