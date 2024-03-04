@@ -54,7 +54,7 @@ func (m *Ci) Handle(ctx context.Context, githubToken *Secret, eventName string, 
 	// Issue Comment
 	case *github.IssueCommentEvent:
 		switch ev.GetAction() {
-		case "created":
+		case "created", "edited":
 			parts := strings.SplitN(ev.Comment.GetBody(), " ", 2)
 			if len(parts) != 2 {
 				return nil
