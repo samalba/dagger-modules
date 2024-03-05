@@ -15,6 +15,7 @@ on:
 
 jobs:
   dagger:
+    if: github.event_name != 'issue_comment'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
