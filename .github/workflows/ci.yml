@@ -27,6 +27,7 @@ jobs:
           verb: call
           module: ./ci
           args: |
+            --work-dir . \
             handle \
             --github-token env:GITHUB_TOKEN \
             --event-name ${{ github.event_name }} \
