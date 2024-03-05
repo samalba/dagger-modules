@@ -33,12 +33,12 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 			return err
 		}
 	case "!sh":
-		stdout, err := m.getBaseImage().Stdout(ctx)
+		stdout, err := m.getBaseImage().WithExec([]string{"sh", "-c", args}).Stdout(ctx)
 		if err != nil {
-			_, err = comment.Create(ctx, fmt.Sprintf("`%s`: %s", args, err.Error()))
+			_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, err.Error()))
 			return err
 		}
-		_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```%s```", args, stdout))
+		_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, stdout))
 		return err
 	case "!event":
 		if _, err := comment.Create(ctx, fmt.Sprintf("```json\n%s\n```", eventData)); err != nil {
