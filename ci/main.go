@@ -64,7 +64,7 @@ func (m *Ci) Handle(ctx context.Context, githubToken *Secret, eventName string, 
 	case *github.IssueCommentEvent:
 		switch ev.GetAction() {
 		case "created", "edited":
-			return m.handleIssueComment(ctx, githubToken, ev)
+			return m.handleIssueComment(ctx, githubToken, ev, eventData)
 		}
 
 	}

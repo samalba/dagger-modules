@@ -8,14 +8,15 @@ import (
 	"github.com/google/go-github/v59/github"
 )
 
-func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *github.IssueCommentEvent) error {
+func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *github.IssueCommentEvent, eventData string) error {
 	// FIXME: check if author is a contributor
 
+	command, args := "", ""
 	parts := strings.SplitN(ev.Comment.GetBody(), " ", 2)
-	if len(parts) != 2 {
-		return nil
+	if len(parts) >= 2 {
+		args = parts[1]
 	}
-	command, args := parts[0], parts[1]
+	command = parts[0]
 
 	comment := dag.GithubComment(
 		githubToken,
@@ -39,6 +40,10 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 		}
 		_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```%s```", args, stdout))
 		return err
+	case "!event":
+		if _, err := comment.Create(ctx, fmt.Sprintf("```json\n%s\n```", eventData)); err != nil {
+			return err
+		}
 	}
 
 	return nil
