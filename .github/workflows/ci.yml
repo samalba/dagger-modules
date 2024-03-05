@@ -17,7 +17,11 @@ jobs:
   dagger:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - run: |
+          [ "${{ github.event_name }}" = "issue_comment" ] && gh pr checkout ${{ github.event.issue.number }} || true
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: dagger/dagger-for-github@v5
         env:
           GITHUB_TOKEN: ${{ github.token }}
