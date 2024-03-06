@@ -9,6 +9,7 @@ import (
 )
 
 func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *github.IssueCommentEvent, eventData string) error {
+	// ev.GetSender().GetRoleName()
 	// FIXME: check if author is a contributor
 
 	command, args := "", ""

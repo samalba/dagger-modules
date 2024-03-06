@@ -18,6 +18,11 @@ func (m *Ci) getBaseImage() *Container {
 		"curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.56.2",
 	})
 
+	// Env vars
+	ctr = ctr.
+		WithEnvVariable("GOPATH", "/go").
+		WithEnvVariable("PATH", "/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+
 	// Mount the code and set the work dir
 	ctr = ctr.
 		WithMountedDirectory("/source", m.WorkDir).
