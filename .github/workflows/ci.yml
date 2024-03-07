@@ -23,11 +23,21 @@ jobs:
           [ "${{ github.event_name }}" = "issue_comment" ] && gh pr checkout ${{ github.event.issue.number }} || true
         env:
           GH_TOKEN: ${{ github.token }}
+      # - run: |
+      #     dagger call ./ci \
+      #       --work-dir . \
+      #       handle \
+      #       --github-token env:GITHUB_TOKEN \
+      #       --event-name ${{ github.event_name }} \
+      #       --event-file ${{ github.event_path }} \
+      #   env:
+      #     GITHUB_TOKEN: ${{ github.token }}
+      #     DAGGER_CLOUD_TOKEN: ${{ secrets.DAGGER_CLOUD_TOKEN }}
       - uses: dagger/dagger-for-github@v5
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          version: "0.10.0"
+          version: "0.10.1"
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
           verb: call
           module: ./ci
@@ -37,3 +47,4 @@ jobs:
             --github-token env:GITHUB_TOKEN \
             --event-name ${{ github.event_name }} \
             --event-file ${{ github.event_path }} \
+          engine-stop: false
