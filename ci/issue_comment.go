@@ -58,7 +58,7 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 			return err
 		}
 	case "!sh":
-		stdout, err := m.getBaseImage().WithExec([]string{"sh", "-c", args}).Stdout(ctx)
+		stdout, err := m.getBaseImage(m.WorkDir).WithExec([]string{"sh", "-c", args}).Stdout(ctx)
 		if err != nil {
 			_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, err.Error()))
 			return err

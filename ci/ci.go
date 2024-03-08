@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"main/internal/dagger"
 	"strings"
 
 	"golang.org/x/sync/errgroup"
 )
 
-func (m *Ci) getBaseImage() *Container {
+func (m *Ci) getBaseImage(sourceDir *dagger.Directory) *Container {
 	ctr := dag.Container().From("alpine:3")
 
 	ctr = ctr.WithMountedDirectory("/source", m.WorkDir)
@@ -27,7 +28,7 @@ func (m *Ci) getBaseImage() *Container {
 
 	// Mount the code and set the work dir
 	ctr = ctr.
-		WithMountedDirectory("/source", m.WorkDir).
+		WithMountedDirectory("/source", sourceDir).
 		WithWorkdir("/source")
 
 	return ctr
@@ -39,12 +40,12 @@ func (m *Ci) GoLint(subdir string) *Container {
 	}
 
 	// Install golangci-lint
-	ctr := m.getBaseImage().WithExec([]string{
+	ctr := m.getBaseImage(m.WorkDir.Directory(subdir)).WithExec([]string{
 		"sh", "-c",
 		"curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.56.2",
 	})
 
-	return ctr.WithExec([]string{"sh", "-c", fmt.Sprintf("cd %q && golangci-lint run -v", subdir)})
+	return ctr.WithExec([]string{"golangci-lint", "run", "-v"})
 }
 
 func (m *Ci) PythonLint(subdir string) *Container {
@@ -53,13 +54,13 @@ func (m *Ci) PythonLint(subdir string) *Container {
 	}
 
 	// Install ruff from testing repository
-	ctr := m.getBaseImage().WithExec([]string{
+	ctr := m.getBaseImage(m.WorkDir.Directory(subdir)).WithExec([]string{
 		"apk", "add", "--no-cache",
 		"-X", "https://dl-cdn.alpinelinux.org/alpine/edge/testing/",
 		"ruff",
 	})
 
-	return ctr.WithExec([]string{"ruff", "check", "-v", subdir})
+	return ctr.WithExec([]string{"ruff", "check", "-v"})
 }
 
 func (m *Ci) RunAllLinters(ctx context.Context) (string, error) {
