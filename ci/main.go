@@ -45,6 +45,7 @@ func (m *Ci) Handle(ctx context.Context, githubToken *Secret, eventName string, 
 			)
 
 			message := fmt.Sprintf("Hello @%s!\n\nThanks for opening a PR.", ev.PullRequest.User.GetLogin())
+			message += "\n\nI'm running the CI checks now. This may take some time..."
 			if _, err := comment.Create(ctx, message); err != nil {
 				return err
 			}
@@ -54,6 +55,16 @@ func (m *Ci) Handle(ctx context.Context, githubToken *Secret, eventName string, 
 
 			// Run all linters
 			if _, err := m.RunAllLinters(ctx); err != nil {
+				_, _ = comment.Create(ctx, fmt.Sprintf("Some of the checks failed: %s", err.Error()))
+				return err
+			}
+
+			message = "All checks passed!"
+			message += helpCommandsMessage()
+			if _, err := comment.Create(ctx, message); err != nil {
+				return err
+			}
+			if _, err := comment.React(ctx, "tada"); err != nil {
 				return err
 			}
 		}
