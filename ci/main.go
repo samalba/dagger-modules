@@ -64,9 +64,6 @@ func (m *Ci) Handle(ctx context.Context, githubToken *Secret, eventName string, 
 			if _, err := comment.Create(ctx, message); err != nil {
 				return err
 			}
-			if _, err := comment.React(ctx, "tada"); err != nil {
-				return err
-			}
 		}
 
 	// Push event
