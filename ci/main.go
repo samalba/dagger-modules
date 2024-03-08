@@ -52,12 +52,18 @@ func (m *Ci) Handle(ctx context.Context, githubToken *Secret, eventName string, 
 				return err
 			}
 
-			// FIXME: call CI
+			// Run all linters
+			if _, err := m.RunAllLinters(ctx); err != nil {
+				return err
+			}
 		}
 
 	// Push event
 	case *github.PushEvent:
-		// FIXME: call CI
+		// Run all linters
+		if _, err := m.RunAllLinters(ctx); err != nil {
+			return err
+		}
 		return nil
 
 	// Issue Comment

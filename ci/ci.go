@@ -1,5 +1,13 @@
 package main
 
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"golang.org/x/sync/errgroup"
+)
+
 func (m *Ci) getBaseImage() *Container {
 	ctr := dag.Container().From("alpine:3")
 
@@ -10,12 +18,6 @@ func (m *Ci) getBaseImage() *Container {
 		"apk", "add", "--no-cache",
 		"go",
 		"curl",
-	})
-
-	// Install golangci-lint
-	ctr = ctr.WithExec([]string{
-		"sh", "-c",
-		"curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.56.2",
 	})
 
 	// Env vars
@@ -29,4 +31,66 @@ func (m *Ci) getBaseImage() *Container {
 		WithWorkdir("/source")
 
 	return ctr
+}
+
+func (m *Ci) GoLint(subdir string) *Container {
+	if subdir == "" {
+		subdir = "."
+	}
+
+	// Install golangci-lint
+	ctr := m.getBaseImage().WithExec([]string{
+		"sh", "-c",
+		"curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.56.2",
+	})
+
+	return ctr.WithExec([]string{"sh", "-c", fmt.Sprintf("cd %q && golangci-lint run -v", subdir)})
+}
+
+func (m *Ci) PythonLint(subdir string) *Container {
+	if subdir == "" {
+		subdir = "."
+	}
+
+	// Install ruff from testing repository
+	ctr := m.getBaseImage().WithExec([]string{
+		"apk", "add", "--no-cache",
+		"-X", "https://dl-cdn.alpinelinux.org/alpine/edge/testing/",
+		"ruff",
+	})
+
+	return ctr.WithExec([]string{"ruff", "check", "-v", subdir})
+}
+
+func (m *Ci) RunAllLinters(ctx context.Context) (string, error) {
+	goModules := []string{"ci", "inline-python", "remote-dagger", "ssh"}
+	pythonModules := []string{"hello-world"}
+
+	g, ctx := errgroup.WithContext(ctx)
+
+	for _, mod := range goModules {
+		modName := mod
+		g.Go(func() error {
+			if _, err := m.GoLint(modName).Stdout(ctx); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	for _, mod := range pythonModules {
+		modName := mod
+		g.Go(func() error {
+			if _, err := m.PythonLint(modName).Stdout(ctx); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("All linters passed: %s", strings.Join(append(goModules, pythonModules...), ", ")), nil
 }
