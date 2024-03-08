@@ -26,6 +26,11 @@ func (m *Ci) getBaseImage(sourceDir *dagger.Directory) *Container {
 		WithEnvVariable("GOPATH", "/go").
 		WithEnvVariable("PATH", "/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
 
+	// Mount cache volumes
+	ctr = ctr.
+		WithMountedCache("/go/pkg/mod", dag.CacheVolume("ci-go-pkg-mod")).
+		WithMountedCache("/root/.cache", dag.CacheVolume("ci-root-cache"))
+
 	// Mount the code and set the work dir
 	ctr = ctr.
 		WithMountedDirectory("/source", sourceDir).
