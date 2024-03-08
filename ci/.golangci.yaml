@@ -1,4 +1,6 @@
 run:
+  timeout: 5m
+
   skip-dirs:
     - "internal/querybuilder"
     - "internal/dagger"
