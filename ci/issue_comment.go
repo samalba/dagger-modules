@@ -33,17 +33,35 @@ func checkAuthorAssociation(ev *github.IssueCommentEvent) bool {
 	return false
 }
 
+func parseCommandArgs(body string) (string, string) {
+	command, args := "", ""
+
+	// only keep the first line of the comment
+	parts := strings.SplitN(body, "\n", 2)
+	if len(parts) < 1 {
+		return command, args
+	}
+	body = parts[0]
+
+	body = strings.TrimSpace(body)
+	parts = strings.SplitN(body, " ", 2)
+	if len(parts) >= 2 {
+		args = parts[1]
+	}
+	command = parts[0]
+
+	args = strings.TrimSpace(args)
+	command = strings.TrimSpace(command)
+
+	return command, args
+}
+
 func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *github.IssueCommentEvent, eventData string) error {
 	if !checkAuthorAssociation(ev) {
 		return fmt.Errorf("User is not authorized to run commands")
 	}
 
-	command, args := "", ""
-	parts := strings.SplitN(ev.Comment.GetBody(), " ", 2)
-	if len(parts) >= 2 {
-		args = parts[1]
-	}
-	command = parts[0]
+	command, args := parseCommandArgs(ev.Comment.GetBody())
 
 	comment := dag.GithubComment(
 		githubToken,
