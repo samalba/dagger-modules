@@ -14,8 +14,10 @@ func helpCommandsMessage() string {
 	message += "- `!echo <message>`: Echoes a message\n"
 	message += "- `!golint <subdir>`: Runs the Go linter on a sub directory\n"
 	message += "- `!pythonlint <subdir>`: Runs the Python linter on a sub directory\n"
+	message += "- `!dagger <command>`: Runs a dagger command\n"
 	message += "- `!event`: Shows the github event (debugging)\n"
 	message += "- `!sh <command>`: Runs a shell command\n"
+	message += "- `!help`: Shows this message\n"
 
 	return message
 }
@@ -63,7 +65,7 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 			_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, err.Error()))
 			return err
 		}
-		_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, stdout))
+		_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, stdout)+helpCommandsMessage())
 		return err
 	case "!event":
 		if _, err := comment.Create(ctx, fmt.Sprintf("```json\n%s\n```", eventData)); err != nil {
@@ -74,7 +76,7 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 			_, err = comment.Create(ctx, fmt.Sprintf("Go linter failed: %s", err.Error()))
 			return err
 		}
-		if _, err := comment.Create(ctx, "Go linter passed!"); err != nil {
+		if _, err := comment.Create(ctx, "Go linter passed!"+helpCommandsMessage()); err != nil {
 			return err
 		}
 	case "!pythonlint":
@@ -82,7 +84,19 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 			_, err = comment.Create(ctx, fmt.Sprintf("Python linter failed: %s", err.Error()))
 			return err
 		}
-		if _, err := comment.Create(ctx, "Python linter passed!"); err != nil {
+		if _, err := comment.Create(ctx, "Python linter passed!"+helpCommandsMessage()); err != nil {
+			return err
+		}
+	case "!dagger":
+		stdout, err := m.DaggerCLI(ctx, args)
+		if err != nil {
+			_, err = comment.Create(ctx, fmt.Sprintf("`$ dagger %s`\n\n```\n%s\n```", args, err.Error())+helpCommandsMessage())
+			return err
+		}
+		_, err = comment.Create(ctx, fmt.Sprintf("`$ dagger %s`\n\n```\n%s\n```", args, stdout)+helpCommandsMessage())
+		return err
+	case "!help":
+		if _, err := comment.Create(ctx, "Help!"+helpCommandsMessage()); err != nil {
 			return err
 		}
 	}

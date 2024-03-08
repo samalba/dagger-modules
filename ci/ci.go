@@ -19,6 +19,7 @@ func (m *Ci) getBaseImage(sourceDir *dagger.Directory) *Container {
 		"apk", "add", "--no-cache",
 		"go",
 		"curl",
+		"docker",
 	})
 
 	// Env vars
@@ -99,4 +100,17 @@ func (m *Ci) RunAllLinters(ctx context.Context) (string, error) {
 	}
 
 	return fmt.Sprintf("All linters passed: %s", strings.Join(append(goModules, pythonModules...), ", ")), nil
+}
+
+func (m *Ci) DaggerCLI(ctx context.Context, args string) (string, error) {
+	ctr := m.getBaseImage(m.WorkDir).
+		WithExec([]string{"sh", "-c", "curl -L https://dl.dagger.io/dagger/install.sh | BIN_DIR=/bin sh"}).
+		WithExec([]string{"sh", "-c", fmt.Sprintf("dagger %s", args)}, dagger.ContainerWithExecOpts{
+			ExperimentalPrivilegedNesting: true,
+		})
+	out, err := ctr.Stdout(ctx)
+	if err != nil {
+		return "", err
+	}
+	return out, nil
 }
