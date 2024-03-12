@@ -6,6 +6,7 @@ import (
 	"main/internal/dagger"
 	"strings"
 
+	"github.com/acarl005/stripansi"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -105,12 +106,14 @@ func (m *Ci) RunAllLinters(ctx context.Context) (string, error) {
 func (m *Ci) DaggerCLI(ctx context.Context, args string) (string, error) {
 	ctr := m.getBaseImage(m.WorkDir).
 		WithExec([]string{"sh", "-c", "curl -L https://dl.dagger.io/dagger/install.sh | BIN_DIR=/bin sh"}).
-		WithExec([]string{"sh", "-c", fmt.Sprintf("2>&1 dagger %s", args)}, dagger.ContainerWithExecOpts{
+		WithExec([]string{"sh", "-c", fmt.Sprintf("2>&1 dagger --silent %s", args)}, dagger.ContainerWithExecOpts{
 			ExperimentalPrivilegedNesting: true,
 		})
 	out, err := ctr.Stdout(ctx)
 	if err != nil {
 		return "", err
 	}
+	// Strip ANSI escape codes
+	out = stripansi.Strip(out)
 	return out, nil
 }
