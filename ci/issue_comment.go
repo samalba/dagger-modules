@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"main/internal/dagger"
 	"strings"
 
 	"github.com/google/go-github/v59/github"
@@ -17,7 +18,6 @@ func helpCommandsMessage() string {
 	message += "- `!dagger <command>`: Runs a dagger command\n"
 	message += "- `!event`: Shows the github event (debugging)\n"
 	message += "- `!sh <command>`: Runs a shell command\n"
-	message += "- `!help`: Shows this message\n"
 
 	return message
 }
@@ -56,6 +56,16 @@ func parseCommandArgs(body string) (string, string) {
 	return command, args
 }
 
+func updateComment(ctx context.Context, comment *dagger.GithubComment, message string) error {
+	message += helpCommandsMessage()
+
+	if _, err := comment.Append(ctx, message); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *github.IssueCommentEvent, eventData string) error {
 	if !checkAuthorAssociation(ev) {
 		return fmt.Errorf("User is not authorized to run commands")
@@ -68,55 +78,40 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 		ev.GetRepo().GetOwner().GetLogin(),
 		ev.GetRepo().GetName(),
 		GithubCommentOpts{
-			Issue: ev.Issue.GetNumber(),
+			Issue:     ev.Issue.GetNumber(),
+			CommentID: int(ev.Comment.GetID()),
 		},
 	)
 
 	switch command {
 	case "!echo":
-		if _, err := comment.Create(ctx, args); err != nil {
-			return err
-		}
+		return updateComment(ctx, comment, args)
 	case "!sh":
 		stdout, err := m.getBaseImage(m.WorkDir).WithExec([]string{"sh", "-c", args}).Stdout(ctx)
+		message := fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, stdout)
 		if err != nil {
-			_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, err.Error()))
-			return err
+			message = fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, err.Error())
 		}
-		_, err = comment.Create(ctx, fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, stdout)+helpCommandsMessage())
-		return err
+		return updateComment(ctx, comment, message)
 	case "!event":
-		if _, err := comment.Create(ctx, fmt.Sprintf("```json\n%s\n```", eventData)); err != nil {
-			return err
-		}
+		return updateComment(ctx, comment, fmt.Sprintf("```json\n%s\n```", eventData))
 	case "!golint":
 		if _, err := m.GoLint(args).Stdout(ctx); err != nil {
-			_, err = comment.Create(ctx, fmt.Sprintf("Go linter failed: %s", err.Error()))
-			return err
+			return updateComment(ctx, comment, fmt.Sprintf("Go linter failed: %s", err.Error()))
 		}
-		if _, err := comment.Create(ctx, "Go linter passed!"+helpCommandsMessage()); err != nil {
-			return err
-		}
+		return updateComment(ctx, comment, "Go linter passed!")
 	case "!pythonlint":
 		if _, err := m.PythonLint(args).Stdout(ctx); err != nil {
-			_, err = comment.Create(ctx, fmt.Sprintf("Python linter failed: %s", err.Error()))
-			return err
+			return updateComment(ctx, comment, fmt.Sprintf("Python linter failed: %s", err.Error()))
 		}
-		if _, err := comment.Create(ctx, "Python linter passed!"+helpCommandsMessage()); err != nil {
-			return err
-		}
+		return updateComment(ctx, comment, "Python linter passed!")
 	case "!dagger":
 		stdout, err := m.DaggerCLI(ctx, args)
+		message := fmt.Sprintf("`$ dagger %s`\n\n```\n%s\n```", args, stdout)
 		if err != nil {
-			_, err = comment.Create(ctx, fmt.Sprintf("`$ dagger %s`\n\n```\n%s\n```", args, err.Error())+helpCommandsMessage())
-			return err
+			message = fmt.Sprintf("`$ dagger %s`\n\n```\n%s\n```", args, err.Error())
 		}
-		_, err = comment.Create(ctx, fmt.Sprintf("`$ dagger %s`\n\n```\n%s\n```", args, stdout)+helpCommandsMessage())
-		return err
-	case "!help":
-		if _, err := comment.Create(ctx, "Help!"+helpCommandsMessage()); err != nil {
-			return err
-		}
+		return updateComment(ctx, comment, message)
 	}
 
 	return nil
