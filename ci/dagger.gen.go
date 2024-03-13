@@ -160,6 +160,9 @@ type ContainerPublishOpts = dagger.ContainerPublishOpts
 // ContainerTerminalOpts contains options for Container.Terminal
 type ContainerTerminalOpts = dagger.ContainerTerminalOpts
 
+// ContainerWithDefaultTerminalCmdOpts contains options for Container.WithDefaultTerminalCmd
+type ContainerWithDefaultTerminalCmdOpts = dagger.ContainerWithDefaultTerminalCmdOpts
+
 // ContainerWithDirectoryOpts contains options for Container.WithDirectory
 type ContainerWithDirectoryOpts = dagger.ContainerWithDirectoryOpts
 
@@ -510,16 +513,22 @@ func convertSlice[I any, O any](in []I, f func(I) O) []O {
 }
 
 func (r Ci) MarshalJSON() ([]byte, error) {
-	var concrete struct{}
+	var concrete struct {
+		WorkDir *Directory
+	}
+	concrete.WorkDir = r.WorkDir
 	return json.Marshal(&concrete)
 }
 
 func (r *Ci) UnmarshalJSON(bs []byte) error {
-	var concrete struct{}
+	var concrete struct {
+		WorkDir *Directory
+	}
 	err := json.Unmarshal(bs, &concrete)
 	if err != nil {
 		return err
 	}
+	r.WorkDir = concrete.WorkDir
 	return nil
 }
 
@@ -612,6 +621,69 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 				}
 			}
 			return nil, (*Ci).Handle(&parent, ctx, githubToken, eventName, eventFile)
+		case "GoLint":
+			var parent Ci
+			err = json.Unmarshal(parentJSON, &parent)
+			if err != nil {
+				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
+			}
+			var subdir string
+			if inputArgs["subdir"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["subdir"]), &subdir)
+				if err != nil {
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg subdir", err))
+				}
+			}
+			return (*Ci).GoLint(&parent, subdir), nil
+		case "PythonLint":
+			var parent Ci
+			err = json.Unmarshal(parentJSON, &parent)
+			if err != nil {
+				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
+			}
+			var subdir string
+			if inputArgs["subdir"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["subdir"]), &subdir)
+				if err != nil {
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg subdir", err))
+				}
+			}
+			return (*Ci).PythonLint(&parent, subdir), nil
+		case "RunAllLinters":
+			var parent Ci
+			err = json.Unmarshal(parentJSON, &parent)
+			if err != nil {
+				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
+			}
+			return (*Ci).RunAllLinters(&parent, ctx)
+		case "DaggerCLI":
+			var parent Ci
+			err = json.Unmarshal(parentJSON, &parent)
+			if err != nil {
+				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
+			}
+			var args string
+			if inputArgs["args"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["args"]), &args)
+				if err != nil {
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg args", err))
+				}
+			}
+			return (*Ci).DaggerCLI(&parent, ctx, args)
+		case "":
+			var parent Ci
+			err = json.Unmarshal(parentJSON, &parent)
+			if err != nil {
+				panic(fmt.Errorf("%s: %w", "failed to unmarshal parent object", err))
+			}
+			var workDir *Directory
+			if inputArgs["workDir"] != nil {
+				err = json.Unmarshal([]byte(inputArgs["workDir"]), &workDir)
+				if err != nil {
+					panic(fmt.Errorf("%s: %w", "failed to unmarshal input arg workDir", err))
+				}
+			}
+			return New(workDir), nil
 		default:
 			return nil, fmt.Errorf("unknown function %s", fnName)
 		}
@@ -624,7 +696,26 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 							dag.TypeDef().WithKind(VoidKind).WithOptional(true)).
 							WithArg("githubToken", dag.TypeDef().WithObject("Secret")).
 							WithArg("eventName", dag.TypeDef().WithKind(StringKind)).
-							WithArg("eventFile", dag.TypeDef().WithObject("File")))), nil
+							WithArg("eventFile", dag.TypeDef().WithObject("File"))).
+					WithFunction(
+						dag.Function("GoLint",
+							dag.TypeDef().WithObject("Container")).
+							WithArg("subdir", dag.TypeDef().WithKind(StringKind))).
+					WithFunction(
+						dag.Function("PythonLint",
+							dag.TypeDef().WithObject("Container")).
+							WithArg("subdir", dag.TypeDef().WithKind(StringKind))).
+					WithFunction(
+						dag.Function("RunAllLinters",
+							dag.TypeDef().WithKind(StringKind))).
+					WithFunction(
+						dag.Function("DaggerCLI",
+							dag.TypeDef().WithKind(StringKind)).
+							WithArg("args", dag.TypeDef().WithKind(StringKind))).
+					WithConstructor(
+						dag.Function("New",
+							dag.TypeDef().WithObject("Ci")).
+							WithArg("workDir", dag.TypeDef().WithObject("Directory")))), nil
 	default:
 		return nil, fmt.Errorf("unknown object %s", parentName)
 	}

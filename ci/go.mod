@@ -14,6 +14,6 @@ require (
 require github.com/google/go-querystring v1.1.0 // indirect
 
 require (
-	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
-	github.com/stretchr/testify v1.8.3 // indirect
+	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
+	github.com/stretchr/testify v1.9.0 // indirect
 )

@@ -68,7 +68,8 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 		ev.GetRepo().GetOwner().GetLogin(),
 		ev.GetRepo().GetName(),
 		GithubCommentOpts{
-			Issue: ev.Issue.GetNumber(),
+			Issue:     ev.Issue.GetNumber(),
+			CommentID: int(ev.Comment.GetID()),
 		},
 	)
 
@@ -91,10 +92,10 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 		}
 	case "!golint":
 		if _, err := m.GoLint(args).Stdout(ctx); err != nil {
-			_, err = comment.Create(ctx, fmt.Sprintf("Go linter failed: %s", err.Error()))
+			_, err = comment.Append(ctx, fmt.Sprintf("Go linter failed: %s", err.Error()))
 			return err
 		}
-		if _, err := comment.Create(ctx, "Go linter passed!"+helpCommandsMessage()); err != nil {
+		if _, err := comment.Append(ctx, "Go linter passed!"+helpCommandsMessage()); err != nil {
 			return err
 		}
 	case "!pythonlint":
