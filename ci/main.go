@@ -55,13 +55,11 @@ func (m *Ci) Handle(ctx context.Context, githubToken *Secret, eventName string, 
 
 			// Run all linters
 			if _, err := m.RunAllLinters(ctx); err != nil {
-				_, _ = comment.Create(ctx, fmt.Sprintf("Some of the checks failed: %s", err.Error()))
+				_, _ = comment.Create(ctx, fmt.Sprintf("Some of the checks failed: %s %s", err.Error(), helpCommandsMessage()))
 				return err
 			}
 
-			message = "All checks passed!"
-			message += helpCommandsMessage()
-			if _, err := comment.Create(ctx, message); err != nil {
+			if _, err := comment.Create(ctx, "All checks passed!"+helpCommandsMessage()); err != nil {
 				return err
 			}
 		}
