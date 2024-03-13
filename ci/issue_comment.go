@@ -57,8 +57,6 @@ func parseCommandArgs(body string) (string, string) {
 }
 
 func updateComment(ctx context.Context, comment *dagger.GithubComment, message string) error {
-	message += helpCommandsMessage()
-
 	if _, err := comment.Append(ctx, message); err != nil {
 		return err
 	}
