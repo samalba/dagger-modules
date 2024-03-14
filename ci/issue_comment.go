@@ -83,8 +83,10 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 
 	switch command {
 	case "!echo":
+		_, _ = comment.React(ctx, "rocket")
 		return updateComment(ctx, comment, args)
 	case "!sh":
+		_, _ = comment.React(ctx, "rocket")
 		stdout, err := m.getBaseImage(m.WorkDir).WithExec([]string{"sh", "-c", args}).Stdout(ctx)
 		message := fmt.Sprintf("`$ %s`\n\n```\n%s\n```", args, stdout)
 		if err != nil {
@@ -92,18 +94,22 @@ func (m *Ci) handleIssueComment(ctx context.Context, githubToken *Secret, ev *gi
 		}
 		return updateComment(ctx, comment, message)
 	case "!event":
+		_, _ = comment.React(ctx, "rocket")
 		return updateComment(ctx, comment, fmt.Sprintf("```json\n%s\n```", eventData))
 	case "!golint":
+		_, _ = comment.React(ctx, "rocket")
 		if _, err := m.GoLint(args).Stdout(ctx); err != nil {
 			return updateComment(ctx, comment, fmt.Sprintf("Go linter failed: %s", err.Error()))
 		}
 		return updateComment(ctx, comment, "Go linter passed!")
 	case "!pythonlint":
+		_, _ = comment.React(ctx, "rocket")
 		if _, err := m.PythonLint(args).Stdout(ctx); err != nil {
 			return updateComment(ctx, comment, fmt.Sprintf("Python linter failed: %s", err.Error()))
 		}
 		return updateComment(ctx, comment, "Python linter passed!")
 	case "!dagger":
+		_, _ = comment.React(ctx, "rocket")
 		stdout, err := m.DaggerCLI(ctx, args)
 		message := fmt.Sprintf("`$ dagger %s`\n\n```\n%s\n```", args, stdout)
 		if err != nil {
