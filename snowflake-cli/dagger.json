@@ -1,0 +1,6 @@
+{
+  "name": "snowflake-cli",
+  "sdk": "python",
+  "source": ".",
+  "engineVersion": "v0.11.4"
+}
