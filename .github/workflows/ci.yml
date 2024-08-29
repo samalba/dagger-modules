@@ -16,7 +16,8 @@ on:
 jobs:
   dagger:
     # runs-on: ubuntu-latest
-    runs-on: self-hosted
+    # runs-on: self-hosted
+    runs-on: depot-ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - run: |
@@ -27,7 +28,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          version: "0.10.1"
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
           verb: call
           module: ./ci
