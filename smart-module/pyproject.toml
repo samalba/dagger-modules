@@ -1,0 +1,17 @@
+[project]
+name = "main"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "dagger-io",
+    "langchain_openai",
+    "langchain_core",
+    "langgraph",
+]
+
+[tool.uv.sources]
+dagger-io = { path = "sdk", editable = true }
+
+[build-system]
+requires = ["hatchling==1.25.0"]
+build-backend = "hatchling.build"

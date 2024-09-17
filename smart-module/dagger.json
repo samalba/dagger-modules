@@ -1,0 +1,6 @@
+{
+  "name": "smart-module",
+  "sdk": "python",
+  "source": ".",
+  "engineVersion": "v0.13.0"
+}
