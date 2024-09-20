@@ -41,35 +41,34 @@ class SmartModule:
     @function
     async def ask(self, api_key: dagger.Secret, prompt: str) -> str:
         """Ask the LLM a prompt that involves a dagger module call"""
-        llm = ChatOpenAI(model="gpt-4o", api_key=await api_key.plaintext())
+        model = ChatOpenAI(model="gpt-4o", api_key=await api_key.plaintext())
 
         tools = self._init_tools()
-        llm_with_tools = llm.bind_tools(tools)
+        model = model.bind_tools(tools)
 
-        builder = StateGraph(MessagesState)
+        workflow = StateGraph(MessagesState)
 
-        async def assistant(state: MessagesState):
-            sys_msg = SystemMessage(content="You are a helpful assistant tasked with performing arithmetic on a set of inputs.")
-            response = await llm_with_tools.ainvoke([sys_msg])
-            return {"messages": [response + state["messages"]]}
+        async def call_model(state: MessagesState):
+            messages = state["messages"]
+            response = await model.ainvoke(messages)
+            return {"messages": [response]}
 
         # Define nodes: these do the work
-        builder.add_node("assistant", assistant)
-        builder.add_node("tools", ToolNode(tools))
+        workflow.add_node("agent", call_model)
+        workflow.add_node("tools", ToolNode(tools))
 
         # Define edges: these determine how the control flow moves
-        builder.add_edge(START, "assistant")
-        builder.add_conditional_edges(
-            "assistant",
-            # If the latest message (result) from assistant is a tool call -> tools_condition routes to tools
-            # If the latest message (result) from assistant is a not a tool call -> tools_condition routes to END
+        workflow.add_edge(START, "agent")
+        workflow.add_conditional_edges(
+            "agent",
+            # Loop to tools until the last message is not a tool call (in that case, route to END)
             tools_condition,
         )
-        builder.add_edge("tools", "assistant")
-        graph = builder.compile()
+        workflow.add_edge("tools", "agent")
+        app = workflow.compile()
 
         inputs = {"messages": [HumanMessage(content=prompt)]}
-        messages = await graph.ainvoke(inputs)
+        messages = await app.ainvoke(inputs)
 
         for m in messages['messages']:
             m.pretty_print()
