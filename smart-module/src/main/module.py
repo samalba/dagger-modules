@@ -21,16 +21,22 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import START, StateGraph, MessagesState
 from langgraph.prebuilt import tools_condition, ToolNode
 
-from .tools import multiply
+from . import tools
 
 
 @object_type
 class SmartModule:
     def _init_tools(self) -> list:
         """Initialize the tools for the LLM"""
-        tools = []
-        tools.append(multiply)
-        return tools
+        tools_funcs = []
+        for t in dir(tools):
+            if not t.startswith("tool_"):
+                continue
+            func = getattr(tools, t)
+            if not callable(func):
+                continue
+            tools_funcs.append(getattr(tools, t))
+        return tools_funcs
 
     @function
     async def ask(self, api_key: dagger.Secret, prompt: str) -> str:
@@ -42,9 +48,10 @@ class SmartModule:
 
         builder = StateGraph(MessagesState)
 
-        def assistant(state: MessagesState):
+        async def assistant(state: MessagesState):
             sys_msg = SystemMessage(content="You are a helpful assistant tasked with performing arithmetic on a set of inputs.")
-            return {"messages": [llm_with_tools.invoke([sys_msg] + state["messages"])]}
+            response = await llm_with_tools.ainvoke([sys_msg])
+            return {"messages": [response + state["messages"]]}
 
         # Define nodes: these do the work
         builder.add_node("assistant", assistant)
@@ -61,23 +68,10 @@ class SmartModule:
         builder.add_edge("tools", "assistant")
         graph = builder.compile()
 
-        messages = [HumanMessage(content=prompt)]
-        messages = graph.invoke({"messages": messages})
+        inputs = {"messages": [HumanMessage(content=prompt)]}
+        messages = await graph.ainvoke(inputs)
 
         for m in messages['messages']:
             m.pretty_print()
 
         return messages['messages'][-1].content
-
-
-    # @function
-    # async def grep_dir(self, directory_arg: dagger.Directory, pattern: str) -> str:
-    #     """Returns lines that match a pattern in the files of the provided Directory"""
-    #     return await (
-    #         dag.container()
-    #         .from_("alpine:latest")
-    #         .with_mounted_directory("/mnt", directory_arg)
-    #         .with_workdir("/mnt")
-    #         .with_exec(["grep", "-R", pattern, "."])
-    #         .stdout()
-    #     )

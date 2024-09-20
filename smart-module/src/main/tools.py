@@ -1,27 +1,16 @@
-def multiply(a: int, b: int) -> int:
-    """Multiply a and b.
+from dagger import dag
+
+# from langchain_core.tools import tool
+
+# @tool
+async def tool_build_and_push(repository_url: str, branch: str, ref: str) -> str:
+    """Builds and pushes a Docker image from a git repository to a registry.
 
     Args:
-        a: first int
-        b: second int
+        repository_url: git repository URL name
+        branch: branch to build from
+        ref: full url of the remote image, including the registry
     """
-    return a * b
 
-# This will be a tool
-def add(a: int, b: int) -> int:
-    """Adds a and b.
-
-    Args:
-        a: first int
-        b: second int
-    """
-    return a + b
-
-def divide(a: int, b: int) -> float:
-    """Adds a and b.
-
-    Args:
-        a: first int
-        b: second int
-    """
-    return a / b
+    dir = dag.git(repository_url).branch(branch).tree()
+    return await dag.container().build(context=dir).publish(address=ref)
