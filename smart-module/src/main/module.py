@@ -20,6 +20,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import START, StateGraph, MessagesState
 from langgraph.prebuilt import tools_condition, ToolNode
+from langchain_core.tools import tool as create_tool
 
 from . import tools
 
@@ -30,12 +31,14 @@ class SmartModule:
         """Initialize the tools for the LLM"""
         tools_funcs = []
         for t in dir(tools):
-            if not t.startswith("tool_"):
+            if not t.startswith("t_"):
                 continue
             func = getattr(tools, t)
             if not callable(func):
                 continue
-            tools_funcs.append(getattr(tools, t))
+
+            tool_func = create_tool(func)
+            tools_funcs.append(tool_func)
         return tools_funcs
 
     @function
