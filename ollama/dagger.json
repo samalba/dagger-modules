@@ -1,0 +1,13 @@
+{
+  "name": "ollama",
+  "engineVersion": "v0.14.0",
+  "sdk": "go",
+  "dependencies": [
+    {
+      "name": "dagrr",
+      "source": "github.com/samalba/gerhard-daggerverse/dagrr@daggr-gpu",
+      "pin": "6612430af8b8b8608015c3ddeb201158c7b2d6aa"
+    }
+  ],
+  "source": "."
+}
