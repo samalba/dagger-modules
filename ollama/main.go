@@ -21,12 +21,9 @@ import (
 
 type Ollama struct{}
 
-// Returns a container that echoes whatever string argument is provided
-func (m *Ollama) ContainerEcho(stringArg string) *dagger.Container {
-	return dag.Container().From("alpine:latest").WithExec([]string{"echo", stringArg})
-}
-
 // Returns lines that match a pattern in the files of the provided Directory
+// Once deployed, in order to point to the new remote engine:
+// export _EXPERIMENTAL_DAGGER_RUNNER_HOST=tcp://<FLY_APP_NAME>.internal:2345
 func (m *Ollama) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret) (string, error) {
 	dagrOnFly := dag.Dagrr(dagger.DagrrOpts{}).OnFlyio(token, dagger.DagrrOnFlyioOpts{
 		Org: "dagger",
@@ -38,9 +35,17 @@ func (m *Ollama) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret) (s
 		Memory:        "16GB",
 		GpuKind:       "l40s",
 		PrimaryRegion: "ord",
+		Environment:   []string{"_EXPERIMENTAL_DAGGER_GPU_SUPPORT = \"true\""},
 	})
 
 	return dagrOnFly.Deploy(ctx, dagger.DagrrFlyDeployOpts{
 		Dir: manifestDir,
 	})
+}
+
+// TestCuda tests if it can access the GPU, requires a machine with an NVIDIA GPU
+func (m *Ollama) TestCuda(ctx context.Context) (string, error) {
+	return dag.Container().From("nvidia/cuda:12.6.2-base-ubuntu24.04").
+		ExperimentalWithAllGPUs().
+		WithExec([]string{"nvidia-smi", "-L"}).Stdout(ctx)
 }
