@@ -1,4 +1,4 @@
-module dagger/ollama
+module dagger/gpu
 
 go 1.23.2
 

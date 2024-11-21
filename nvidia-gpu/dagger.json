@@ -1,5 +1,5 @@
 {
-  "name": "ollama",
+  "name": "gpu",
   "engineVersion": "v0.14.0",
   "sdk": "go",
   "dependencies": [

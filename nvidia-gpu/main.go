@@ -1,4 +1,4 @@
-// A generated module for Ollama functions
+// A generated module for Gpu functions
 //
 // This module has been generated via dagger init and serves as a reference to
 // basic module structure as you get started with Dagger.
@@ -16,15 +16,15 @@ package main
 
 import (
 	"context"
-	"dagger/ollama/internal/dagger"
+	"dagger/gpu/internal/dagger"
 )
 
-type Ollama struct{}
+type Gpu struct{}
 
 // Returns lines that match a pattern in the files of the provided Directory
 // Once deployed, in order to point to the new remote engine:
 // export _EXPERIMENTAL_DAGGER_RUNNER_HOST=tcp://<FLY_APP_NAME>.internal:2345
-func (m *Ollama) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret) (string, error) {
+func (m *Gpu) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret) (string, error) {
 	dagrOnFly := dag.Dagrr(dagger.DagrrOpts{}).OnFlyio(token, dagger.DagrrOnFlyioOpts{
 		Org: "dagger",
 	})
@@ -44,8 +44,13 @@ func (m *Ollama) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret) (s
 }
 
 // TestCuda tests if it can access the GPU, requires a machine with an NVIDIA GPU
-func (m *Ollama) TestCuda(ctx context.Context) (string, error) {
-	return dag.Container().From("nvidia/cuda:12.6.2-base-ubuntu24.04").
+func (m *Gpu) TestCuda(ctx context.Context) (string, error) {
+	return dag.Container().
+		// From("nvidia/cuda:12.6.2-base-ubuntu24.04").
+		From("nvidia/cuda:11.7.1-base-ubuntu20.04").
+		// FIXME: this is an attempt to fix the error: "fork/exec /usr/bin/nvidia-container-runtime-hook: no such file or directory"
+		WithExec([]string{"sh", "-c", "apt update && apt install -y nvidia-container-toolkit"}).
 		ExperimentalWithAllGPUs().
-		WithExec([]string{"nvidia-smi", "-L"}).Stdout(ctx)
+		WithExec([]string{"nvidia-smi", "-L"}).
+		Stdout(ctx)
 }
