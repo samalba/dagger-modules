@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"dagger/gpu/internal/dagger"
+	"fmt"
 )
 
 type Gpu struct{}
@@ -24,8 +25,9 @@ type Gpu struct{}
 // Returns lines that match a pattern in the files of the provided Directory
 // Once deployed, in order to point to the new remote engine:
 // export _EXPERIMENTAL_DAGGER_RUNNER_HOST=tcp://<FLY_APP_NAME>.internal:2345
-func (m *Gpu) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret) (string, error) {
-	dagrOnFly := dag.Dagrr(dagger.DagrrOpts{}).OnFlyio(token, dagger.DagrrOnFlyioOpts{
+func (m *Gpu) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret, org string) (string, error) {
+	dagr := dag.Dagrr(dagger.DagrrOpts{})
+	dagrOnFly := dagr.OnFlyio(token, dagger.DagrrOnFlyioOpts{
 		Org: "dagger",
 	})
 
@@ -38,19 +40,28 @@ func (m *Gpu) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret) (stri
 		Environment:   []string{"_EXPERIMENTAL_DAGGER_GPU_SUPPORT = \"true\""},
 	})
 
-	return dagrOnFly.Deploy(ctx, dagger.DagrrFlyDeployOpts{
+	if _, err := dagrOnFly.Deploy(ctx, dagger.DagrrFlyDeployOpts{
 		Dir: manifestDir,
-	})
+	}); err != nil {
+		return "", err
+	}
+
+	appName, _ := dagr.GetApp(ctx)
+	return fmt.Sprintf("export _EXPERIMENTAL_DAGGER_RUNNER_HOST=tcp://%s.internal:2345", appName), nil
 }
 
 // TestCuda tests if it can access the GPU, requires a machine with an NVIDIA GPU
 func (m *Gpu) TestCuda(ctx context.Context) (string, error) {
 	return dag.Container().
-		// From("nvidia/cuda:12.6.2-base-ubuntu24.04").
-		From("nvidia/cuda:11.7.1-base-ubuntu20.04").
-		// FIXME: this is an attempt to fix the error: "fork/exec /usr/bin/nvidia-container-runtime-hook: no such file or directory"
-		WithExec([]string{"sh", "-c", "apt update && apt install -y nvidia-container-toolkit"}).
+		From("nvidia/cuda:12.6.2-base-ubuntu24.04").
+		WithExec([]string{"apt-get", "update"}).
+		WithExec([]string{"apt-get", "install", "-y", "libnvidia-compute-565"}).
 		ExperimentalWithAllGPUs().
-		WithExec([]string{"nvidia-smi", "-L"}).
+		WithExec([]string{"sh", "-c", "nvidia-smi -L"}).
 		Stdout(ctx)
+}
+
+// Destroy the remote Flyio app
+func (m *Gpu) DestroyDaggerOnFly(ctx context.Context, token *dagger.Secret, app string) (string, error) {
+	return dag.Flyio(token).Destroy(ctx, app)
 }
