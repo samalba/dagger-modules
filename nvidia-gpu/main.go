@@ -74,6 +74,7 @@ func (m *Gpu) OllamaWithGPU(ctx context.Context) (string, error) {
 
 	server := ctr.
 		WithMountedCache("/root/.ollama", cache).
+		WithEnvVariable("OLLAMA_HOST", "0.0.0.0:11434").
 		WithExec([]string{"ollama", "serve"}).
 		WithExposedPort(11434).AsService()
 
