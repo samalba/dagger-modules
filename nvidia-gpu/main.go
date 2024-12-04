@@ -61,6 +61,46 @@ func (m *Gpu) TestCuda(ctx context.Context) (string, error) {
 		Stdout(ctx)
 }
 
+func (m *Gpu) OllamaWithGPU(ctx context.Context) (string, error) {
+	ctr := dag.Container().
+		From("nvidia/cuda:12.6.2-base-ubuntu24.04").
+		WithExec([]string{"apt-get", "update"}).
+		WithExec([]string{"apt-get", "install", "-y", "libnvidia-compute-565"}).
+		ExperimentalWithAllGPUs().
+		WithMountedFile("/tmp/ollama.tgz", dag.HTTP("https://ollama.com/download/ollama-linux-amd64.tgz")).
+		WithExec([]string{"tar", "-C", "/usr", "-xzf", "/tmp/ollama.tgz"})
+
+	cache := dag.CacheVolume("ollama-data")
+
+	server := ctr.
+		WithMountedCache("/root/.ollama", cache).
+		WithExec([]string{"ollama", "serve"}).
+		WithExposedPort(11434).AsService()
+
+	return ctr.
+		WithServiceBinding("ollama", server).
+		WithEnvVariable("OLLAMA_HOST", "ollama:11434").
+		WithExec([]string{"ollama", "pull", "llama3.2"}).
+		WithExec([]string{"ollama", "run", "llama3.2", "What color is the grass?"}).Stdout(ctx)
+}
+
+func (m *Gpu) OllamaWithCPU(ctx context.Context) (string, error) {
+	ctr := dag.Container().From("ollama/ollama:0.4.7")
+
+	cache := dag.CacheVolume("ollama-data")
+
+	server := ctr.
+		WithMountedCache("/root/.ollama", cache).
+		WithExec([]string{"ollama", "serve"}).
+		WithExposedPort(11434).AsService()
+
+	return ctr.
+		WithServiceBinding("ollama", server).
+		WithEnvVariable("OLLAMA_HOST", "ollama:11434").
+		WithExec([]string{"ollama", "pull", "llama3.2"}).
+		WithExec([]string{"ollama", "run", "llama3.2", "What color is the grass?"}).Stdout(ctx)
+}
+
 // Destroy the remote Flyio app
 func (m *Gpu) DestroyDaggerOnFly(ctx context.Context, token *dagger.Secret, app string) (string, error) {
 	return dag.Flyio(token).Destroy(ctx, app)

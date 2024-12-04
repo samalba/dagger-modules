@@ -4,14 +4,14 @@
   "sdk": "go",
   "dependencies": [
     {
-      "name": "flyio",
-      "source": "github.com/samalba/gerhard-daggerverse/flyio@daggr-gpu",
-      "pin": "594eb759a11b0a57edf9aa6841fc53bff95c7c35"
+      "name": "dagrr",
+      "source": "github.com/gerhard/daggerverse/dagrr",
+      "pin": "01a08d30976a55d5f9eb458f41c5123034f06a2b"
     },
     {
-      "name": "dagrr",
-      "source": "github.com/samalba/gerhard-daggerverse/dagrr@daggr-gpu",
-      "pin": "594eb759a11b0a57edf9aa6841fc53bff95c7c35"
+      "name": "flyio",
+      "source": "github.com/gerhard/daggerverse/flyio",
+      "pin": "01a08d30976a55d5f9eb458f41c5123034f06a2b"
     }
   ],
   "source": "."
