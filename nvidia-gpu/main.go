@@ -50,7 +50,7 @@ func (m *Gpu) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret, org s
 	return fmt.Sprintf("export _EXPERIMENTAL_DAGGER_RUNNER_HOST=tcp://%s.internal:2345", appName), nil
 }
 
-// TestCuda tests if it can access the GPU, requires a machine with an NVIDIA GPU
+// TestCuda tests if it can access the GPU, returns GPU information
 func (m *Gpu) TestCuda(ctx context.Context) (string, error) {
 	return dag.Container().
 		From("nvidia/cuda:12.6.2-base-ubuntu24.04").
@@ -61,45 +61,73 @@ func (m *Gpu) TestCuda(ctx context.Context) (string, error) {
 		Stdout(ctx)
 }
 
-func (m *Gpu) OllamaWithGPU(ctx context.Context) (string, error) {
-	ctr := dag.Container().
+func (m *Gpu) ollamaWithGPU() *dagger.Container {
+	return dag.Container().
 		From("nvidia/cuda:12.6.2-base-ubuntu24.04").
 		WithExec([]string{"apt-get", "update"}).
 		WithExec([]string{"apt-get", "install", "-y", "libnvidia-compute-565"}).
 		ExperimentalWithAllGPUs().
 		WithMountedFile("/tmp/ollama.tgz", dag.HTTP("https://ollama.com/download/ollama-linux-amd64.tgz")).
 		WithExec([]string{"tar", "-C", "/usr", "-xzf", "/tmp/ollama.tgz"})
+}
 
+func (m *Gpu) ollamaWithCPU() *dagger.Container {
+	return dag.Container().From("ollama/ollama:0.4.7")
+}
+
+func (m *Gpu) HasGPU(ctx context.Context) bool {
+	// FIXME: given we can't access the host and introspect it for runtime info
+	// we need to try enabling GPU access and check for errors
+	_, err := dag.Container().
+		From("busybox:stable").
+		ExperimentalWithAllGPUs().
+		WithExec([]string{"true"}).
+		Stdout(ctx)
+
+	return (err == nil)
+}
+
+// OllamaRun spins up an Ollama server and run a prompt
+func (m *Gpu) OllamaRun(
+	ctx context.Context,
+
+	// Model to pull and use for the prompt
+	//
+	// +optional
+	// +default="llama3.2"
+	model string,
+
+	// Prompt to use on the model
+	//
+	// +optional
+	// +default="What color is the grass?"
+	prompt string,
+) (string, error) {
+	// by default, use the standard Ollama image
+	ctr := m.ollamaWithCPU()
+
+	if m.HasGPU(ctx) {
+		// use a bigger image that includes the nvidia drivers
+		ctr = m.ollamaWithGPU()
+	}
+
+	// We'll use this volume to store Ollama data
+	// so the models we pull will be persisted with every run
 	cache := dag.CacheVolume("ollama-data")
 
+	// The Ollama server, running as a Dagger service
 	server := ctr.
 		WithMountedCache("/root/.ollama", cache).
 		WithEnvVariable("OLLAMA_HOST", "0.0.0.0:11434").
 		WithExec([]string{"ollama", "serve"}).
 		WithExposedPort(11434).AsService()
 
+	// The Ollama client, connecting to the server above
 	return ctr.
 		WithServiceBinding("ollama", server).
 		WithEnvVariable("OLLAMA_HOST", "ollama:11434").
-		WithExec([]string{"ollama", "pull", "llama3.2"}).
-		WithExec([]string{"ollama", "run", "llama3.2", "What color is the grass?"}).Stdout(ctx)
-}
-
-func (m *Gpu) OllamaWithCPU(ctx context.Context) (string, error) {
-	ctr := dag.Container().From("ollama/ollama:0.4.7")
-
-	cache := dag.CacheVolume("ollama-data")
-
-	server := ctr.
-		WithMountedCache("/root/.ollama", cache).
-		WithExec([]string{"ollama", "serve"}).
-		WithExposedPort(11434).AsService()
-
-	return ctr.
-		WithServiceBinding("ollama", server).
-		WithEnvVariable("OLLAMA_HOST", "ollama:11434").
-		WithExec([]string{"ollama", "pull", "llama3.2"}).
-		WithExec([]string{"ollama", "run", "llama3.2", "What color is the grass?"}).Stdout(ctx)
+		WithExec([]string{"ollama", "pull", model}).
+		WithExec([]string{"ollama", "run", model, prompt}).Stdout(ctx)
 }
 
 // Destroy the remote Flyio app
