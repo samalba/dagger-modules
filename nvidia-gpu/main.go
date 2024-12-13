@@ -119,8 +119,10 @@ func (m *Gpu) OllamaRun(
 	server := ctr.
 		WithMountedCache("/root/.ollama", cache).
 		WithEnvVariable("OLLAMA_HOST", "0.0.0.0:11434").
-		WithExec([]string{"ollama", "serve"}).
-		WithExposedPort(11434).AsService()
+		WithExposedPort(11434).
+		AsService(dagger.ContainerAsServiceOpts{
+			Args: []string{"ollama", "serve"},
+		})
 
 	// The Ollama client, connecting to the server above
 	return ctr.
