@@ -28,7 +28,7 @@ type Gpu struct{}
 func (m *Gpu) DeployDaggerOnFly(ctx context.Context, token *dagger.Secret, org string) (string, error) {
 	dagr := dag.Dagrr(dagger.DagrrOpts{})
 	dagrOnFly := dagr.OnFlyio(token, dagger.DagrrOnFlyioOpts{
-		Org: "dagger",
+		Org: org,
 	})
 
 	manifestDir := dagrOnFly.Manifest(dagger.DagrrFlyManifestOpts{
