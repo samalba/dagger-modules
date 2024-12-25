@@ -1,4 +1,4 @@
-// A generated module for Examples functions
+// A generated module for MyModule functions
 //
 // This module has been generated via dagger init and serves as a reference to
 // basic module structure as you get started with Dagger.
@@ -15,10 +15,10 @@
 package main
 
 import (
-	"dagger/examples/internal/dagger"
+	"dagger/my-module/internal/dagger"
 )
 
-type Examples struct{}
+type MyModule struct{}
 
 // FROM python:3.12
 // WORKDIR /usr/local/app
@@ -32,7 +32,7 @@ type Examples struct{}
 // RUN useradd app
 // USER app
 // CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
-func (m *Examples) Example1(localDirectory *dagger.Directory) *dagger.Container {
+func (m *MyModule) Example1(localDirectory *dagger.Directory) *dagger.Container {
 	// Dagger cannot access the local directory, so the directory on the host is passed as an argument to the function
 	// Here is an example of calling the function with the current working directory passed as the argument:
 	// dagger call example1 --local-directory .
@@ -62,7 +62,7 @@ func (m *Examples) Example1(localDirectory *dagger.Directory) *dagger.Container 
 // EXPOSE 8080
 // COPY --from=builder /opt/app/target/*.jar /opt/app/*.jar
 // ENTRYPOINT ["java", "-jar", "/opt/app/*.jar"]
-func (m *Examples) Example2(localDirectory *dagger.Directory) *dagger.Container {
+func (m *MyModule) Example2(localDirectory *dagger.Directory) *dagger.Container {
 	// Dagger cannot access the local directory, so the directory on the host is passed as an argument to the function
 	// Here is an example of calling the function with the current working directory passed as the argument:
 	// dagger call example1 --local-directory .

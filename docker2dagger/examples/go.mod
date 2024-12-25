@@ -1,4 +1,4 @@
-module dagger/examples
+module dagger/my-module
 
 go 1.23.2
 

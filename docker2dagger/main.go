@@ -15,12 +15,101 @@
 package main
 
 import (
+	"context"
 	"dagger/docker-to-dagger/internal/dagger"
+	"fmt"
+
+	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/anthropics/anthropic-sdk-go/option"
 )
 
 type DockerToDagger struct{}
 
-// Returns a container that echoes whatever string argument is provided
-func (m *DockerToDagger) FromDockerfile(anthropicApiKey *dagger.Secret, dockerfile *dagger.File) *dagger.Container {
+func (m *DockerToDagger) systemPrompt(ctx context.Context) (string, error) {
+	message := `You are generating Dagger modules from Dockerfiles.
 
+- Dagger is a container engine that allows building containers from native Code.
+- Anything that can be done in a Dockerfile can be expressed with the Dagger API.
+- You will be provided with a Dockerfile as input, and you will return the code of a Go function that does exactly the same behavior using the Dagger API.
+
+Here is code in Golang that shows several examples of Dockerfiles and there equivalent in the Dagger API.
+
+The functions are numbered such as Example1, Example2, Example<number>, etc...
+
+Each function is an implementation of the Dockerfile in comment in the Docstring of the function.
+Each line of the function maps to each line in the example Dockerfile, there are extra explanation in comments.
+`
+
+	exampleFile, err := dag.CurrentModule().Source().File("examples/main.go").Contents(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	message = fmt.Sprintf("%s\n```go\n%s\n```\n", message, exampleFile)
+
+	return message, nil
+}
+
+func (m *DockerToDagger) generateDaggerModule(moduleCode string) *dagger.Directory {
+	return dag.CurrentModule().
+		Source().
+		Directory("examples").
+		WithNewFile("main.go", moduleCode)
+}
+
+// Convert a Dockerfile into a new Dagger module
+func (m *DockerToDagger) FromDockerfile(ctx context.Context, anthropicApiKey *dagger.Secret, dockerfile *dagger.File) (*dagger.Directory, error) {
+	dockerfileContent, err := dockerfile.Contents(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	userPrompt := "Convert the following Dockerfile between the code block to a Dagger function that produces the same container:\n\n"
+	userPrompt += fmt.Sprintf("```\n%s\n```\n\n", dockerfileContent)
+	userPrompt += `For returning the code, follow the additional instructions:
+	- Return a complete Dagger module containing a function named "Build" that implements the Dockerfile.
+	- The Example code provided is a valid Dagger module, you can follow this format.
+	- Like the functions provided as examples, include the original Dockerfile in comment in the Docstring of the function.
+	- The main Struct in the Dagger module should be named "MyModule".
+	- Do not add explanations around the code block, return only the Go code that I can compile right away, no other data.`
+
+	apiKey, err := anthropicApiKey.Plaintext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	client := anthropic.NewClient(
+		option.WithAPIKey(apiKey),
+	)
+
+	systemPrompt, err := m.systemPrompt(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     anthropic.F(anthropic.ModelClaude3_5SonnetLatest),
+		MaxTokens: anthropic.F(int64(2048)),
+		Messages: anthropic.F([]anthropic.MessageParam{
+			anthropic.NewAssistantMessage(anthropic.NewTextBlock(systemPrompt)),
+			anthropic.NewUserMessage(anthropic.NewTextBlock(userPrompt)),
+		}),
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+
+	moduleCode := ""
+	for _, m := range message.Content {
+		if m.Type != anthropic.ContentBlockTypeText {
+			continue
+		}
+		moduleCode = m.Text
+	}
+
+	if moduleCode == "" {
+		return nil, fmt.Errorf("no code found in response: %+v", message)
+	}
+
+	return m.generateDaggerModule(moduleCode), nil
 }
