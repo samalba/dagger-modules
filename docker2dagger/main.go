@@ -69,7 +69,8 @@ func (m *DockerToDagger) FromDockerfile(ctx context.Context, anthropicApiKey *da
 	userPrompt += `For returning the code, follow the additional instructions:
 	- Return a complete Dagger module containing a function named "Build" that implements the Dockerfile.
 	- The Example code provided is a valid Dagger module, you can follow this format.
-	- Like the functions provided as examples, include the original Dockerfile in comment in the Docstring of the function.
+	- Like the functions provided as examples, add a generic comment on the first line of the function Docstring, followed by the original Dockerfile.
+	- The import path of the module will always be the same as the one provided in the example.
 	- The main Struct in the Dagger module should be named "MyModule".
 	- Do not add explanations around the code block, return only the Go code that I can compile right away, no other data.`
 
