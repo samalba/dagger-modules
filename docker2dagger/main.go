@@ -72,6 +72,7 @@ func (m *DockerToDagger) FromDockerfile(ctx context.Context, anthropicApiKey *da
 	- Like the functions provided as examples, add a generic comment on the first line of the function Docstring, followed by the original Dockerfile.
 	- The import path of the module will always be the same as the one provided in the example.
 	- The main Struct in the Dagger module should be named "MyModule".
+	- Double check the import paths of the generated code, for example: only include the "context" import path if you use a context in the function.
 	- Do not add explanations around the code block, return only the Go code that I can compile right away, no other data.`
 
 	apiKey, err := anthropicApiKey.Plaintext(ctx)
