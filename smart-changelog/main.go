@@ -89,7 +89,78 @@ func (m *Smartchangelog) GetChangelogData(
 	}, nil
 }
 
-// GenerateChangelog generates a markdown changelog using Claude
+func callClaude(ctx context.Context, anthropicApiKey *dagger.Secret, prompt string) (string, error) {
+	apiKey, err := anthropicApiKey.Plaintext(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	client := anthropic.NewClient(
+		option.WithAPIKey(apiKey),
+	)
+
+	msg, err := client.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     anthropic.F(anthropic.ModelClaude3_5SonnetLatest),
+		MaxTokens: anthropic.F(int64(4096)),
+		Messages: anthropic.F([]anthropic.MessageParam{
+			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
+		}),
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to generate content: %w", err)
+	}
+
+	return strings.TrimSpace(msg.Content[0].Text), nil
+}
+
+func generateChangelogContent(ctx context.Context, anthropicApiKey *dagger.Secret, data *ChangelogData) (string, error) {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal changelog data: %w", err)
+	}
+
+	prompt := `Generate a well-formatted markdown changelog from this JSON data.
+	Group changes into sections: Features 🚀, Bug Fixes 🐛, Changes 🔄, and Maintenance 🧰.
+	Use commit subjects and PR information to create clear, user-focused descriptions.
+
+	For each change, end the line with: "in {pr_url}", only if there's a pull request URL available.
+
+	Format the output as markdown with emojis and proper section headers.
+
+	JSON Data:
+	` + string(jsonData)
+
+	return callClaude(ctx, anthropicApiKey, prompt)
+}
+
+func generateBlogPost(ctx context.Context, anthropicApiKey *dagger.Secret, data *ChangelogData) (string, error) {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal changelog data: %w", err)
+	}
+
+	prompt := `Generate an engaging blog post announcing the changes in this release.
+	Focus on the most important features and improvements.
+	The tone should be professional but friendly.
+	Include code examples or configuration snippets if relevant.
+	Format the output as markdown.
+	
+	Structure the post with:
+	1. A brief introduction
+	2. Highlight of key features
+	3. Notable improvements and fixes
+	4. Conclusion with next steps or future plans
+
+	Use the PR descriptions for detailed information when available.
+
+	JSON Data:
+	` + string(jsonData)
+
+	return callClaude(ctx, anthropicApiKey, prompt)
+}
+
+// GenerateChangelog generates both a changelog and blog post using Claude
 func (m *Smartchangelog) GenerateChangelog(
 	ctx context.Context,
 	githubRepo string,
@@ -116,41 +187,18 @@ func (m *Smartchangelog) GenerateChangelog(
 		return nil, fmt.Errorf("failed to marshal changelog data: %w", err)
 	}
 
-	prompt := `Generate a well-formatted markdown changelog from this JSON data.
-	Group changes into sections: Features 🚀, Bug Fixes 🐛, Changes 🔄, and Maintenance 🧰.
-	Use commit subjects and PR information to create clear, user-focused descriptions.
-
-	For each change, end the line with: "in {pr_url}", only if there's a pull request URL available.
-
-	Format the output as markdown with emojis and proper section headers.
-
-	JSON Data:
-	` + string(jsonData)
-
-	apiKey, err := anthropicApiKey.Plaintext(ctx)
+	changelog, err := generateChangelogContent(ctx, anthropicApiKey, data)
 	if err != nil {
 		return nil, err
 	}
 
-	client := anthropic.NewClient(
-		option.WithAPIKey(apiKey),
-	)
-
-	msg, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:     anthropic.F(anthropic.ModelClaude3_5SonnetLatest),
-		MaxTokens: anthropic.F(int64(4096)),
-		Messages: anthropic.F([]anthropic.MessageParam{
-			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
-		}),
-	})
-
+	blogpost, err := generateBlogPost(ctx, anthropicApiKey, data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate changelog: %w", err)
+		return nil, err
 	}
 
-	content := strings.TrimSpace(msg.Content[0].Text)
-
 	return dag.Directory().
-		WithNewFile("changelog.md", content).
+		WithNewFile("changelog.md", changelog).
+		WithNewFile("blogpost.md", blogpost).
 		WithNewFile("raw_data.json", string(jsonData)), nil
 }
