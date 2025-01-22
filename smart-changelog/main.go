@@ -30,6 +30,7 @@ type Smartchangelog struct{}
 // Commit represents a Git commit with its metadata
 type Commit struct {
 	Hash        string       `json:"hash"`
+	Prefix      string       `json:"prefix"`
 	Subject     string       `json:"subject"`
 	Body        string       `json:"body"`
 	Author      string       `json:"author"`
@@ -100,18 +101,29 @@ func (m *Smartchangelog) GenerateChangelog(
 		return "", err
 	}
 
+	// Filter out commits with "chore" or "doc" prefixes
+	filteredCommits := make([]Commit, 0, len(data.Commits))
+	for _, commit := range data.Commits {
+		if commit.Prefix != "chore" && commit.Prefix != "doc" {
+			filteredCommits = append(filteredCommits, commit)
+		}
+	}
+	data.Commits = filteredCommits
+
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal changelog data: %w", err)
 	}
 
-	prompt := `Generate a well-formatted markdown changelog from this JSON data.
-Group changes into sections: Features 🚀, Bug Fixes 🐛, Changes 🔄, and Maintenance 🧰.
-Use commit subjects and PR information to create clear, user-focused descriptions.
-Format the output as markdown with emojis and proper section headers.
+	// return string(jsonData), nil
 
-JSON Data:
-` + string(jsonData)
+	prompt := `Generate a well-formatted markdown changelog from this JSON data.
+	Group changes into sections: Features 🚀, Bug Fixes 🐛, Changes 🔄, and Maintenance 🧰.
+	Use commit subjects and PR information to create clear, user-focused descriptions.
+	Format the output as markdown with emojis and proper section headers.
+
+	JSON Data:
+	` + string(jsonData)
 
 	apiKey, err := anthropicApiKey.Plaintext(ctx)
 	if err != nil {

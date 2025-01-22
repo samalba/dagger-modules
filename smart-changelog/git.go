@@ -6,6 +6,46 @@ import (
 	"strings"
 )
 
+// getCommitPrefix extracts and normalizes the commit type prefix
+func getCommitPrefix(subject string) string {
+	subject = strings.ToLower(subject)
+	subject = strings.TrimSpace(subject)
+
+	// Find the colon separator, accounting for optional spaces
+	idx := strings.Index(subject, ":")
+	if idx < 0 {
+		return ""
+	}
+
+	// Extract the prefix part
+	prefix := strings.TrimSpace(subject[:idx])
+
+	// Handle scoped prefixes like "chore(deps)"
+	if parenIdx := strings.Index(prefix, "("); parenIdx > 0 {
+		prefix = strings.TrimSpace(prefix[:parenIdx])
+	}
+
+	switch prefix {
+	case "feat", "feature":
+		return "feat"
+	case "fix", "bug":
+		return "fix"
+	case "doc", "docs":
+		return "doc"
+	case "chore", "build", "ci":
+		return "chore"
+	case "test", "tests":
+		return "test"
+	case "refactor":
+		return "refactor"
+	case "style":
+		return "style"
+	case "perf":
+		return "perf"
+	}
+	return ""
+}
+
 // GetCommits retrieves commits between two refs from a Git repository
 func (m *Smartchangelog) GetCommits(
 	ctx context.Context,
@@ -50,6 +90,7 @@ func (m *Smartchangelog) GetCommits(
 			Body:    strings.TrimSpace(strings.Join(lines[2:len(lines)-2], "\n")),
 			Author:  lines[len(lines)-2],
 			Date:    lines[len(lines)-1],
+			Prefix:  getCommitPrefix(lines[1]),
 		}
 		commits = append(commits, commit)
 	}
