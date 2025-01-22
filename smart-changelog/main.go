@@ -120,8 +120,7 @@ func (m *Smartchangelog) GenerateChangelog(
 	Group changes into sections: Features 🚀, Bug Fixes 🐛, Changes 🔄, and Maintenance 🧰.
 	Use commit subjects and PR information to create clear, user-focused descriptions.
 
-	For each change, end the line with: "by @{author} in {pr_url}" if there's a pull request,
-	or just "by @{author}" if there's no pull request.
+	For each change, end the line with: "in {pr_url}", only if there's a pull request URL available.
 
 	Format the output as markdown with emojis and proper section headers.
 
