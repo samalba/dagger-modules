@@ -44,6 +44,7 @@ type PullRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"body"`
 	MergeCommit string `json:"merge_commit_sha"`
+	URL         string `json:"url"`
 }
 
 // ChangelogData represents all the information needed to generate a changelog
@@ -95,10 +96,10 @@ func (m *Smartchangelog) GenerateChangelog(
 	fromRef string,
 	toRef string,
 	anthropicApiKey *dagger.Secret,
-) (string, error) {
+) (*dagger.Directory, error) {
 	data, err := m.GetChangelogData(ctx, githubRepo, fromRef, toRef)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Filter out commits with "chore" or "doc" prefixes
@@ -112,14 +113,16 @@ func (m *Smartchangelog) GenerateChangelog(
 
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal changelog data: %w", err)
+		return nil, fmt.Errorf("failed to marshal changelog data: %w", err)
 	}
-
-	// return string(jsonData), nil
 
 	prompt := `Generate a well-formatted markdown changelog from this JSON data.
 	Group changes into sections: Features 🚀, Bug Fixes 🐛, Changes 🔄, and Maintenance 🧰.
 	Use commit subjects and PR information to create clear, user-focused descriptions.
+
+	For each change, end the line with: "by @{author} in {pr_url}" if there's a pull request,
+	or just "by @{author}" if there's no pull request.
+
 	Format the output as markdown with emojis and proper section headers.
 
 	JSON Data:
@@ -127,7 +130,7 @@ func (m *Smartchangelog) GenerateChangelog(
 
 	apiKey, err := anthropicApiKey.Plaintext(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	client := anthropic.NewClient(
@@ -143,8 +146,12 @@ func (m *Smartchangelog) GenerateChangelog(
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to generate changelog: %w", err)
+		return nil, fmt.Errorf("failed to generate changelog: %w", err)
 	}
 
-	return strings.TrimSpace(msg.Content[0].Text), nil
+	content := strings.TrimSpace(msg.Content[0].Text)
+
+	return dag.Directory().
+		WithNewFile("changelog.md", content).
+		WithNewFile("raw_data.json", string(jsonData)), nil
 }

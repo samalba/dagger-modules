@@ -42,7 +42,13 @@ func (g *GithubClient) GetPullRequestForCommit(ctx context.Context, commitHash s
 		WithExec([]string{"sh", "-c", `
 			curl -s "https://api.github.com/repos/$OWNER/$REPO/commits/$COMMIT_HASH/pulls" \
 				-H "Accept: application/vnd.github.v3+json" |
-			jq -r 'if length > 0 then .[0] | {number, title, body, merge_commit_sha} else empty end'
+			jq -r 'if length > 0 then .[0] | {
+				number,
+				title,
+				body,
+				merge_commit_sha,
+				url: "https://github.com/\(env.OWNER)/\(env.REPO)/pull/\(.number)"
+			} else empty end'
 		`}).
 		Stdout(ctx)
 
