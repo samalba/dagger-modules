@@ -1,5 +1,7 @@
 {
   "name": "hello-world",
-  "sdk": "python",
-  "engineVersion": "v0.10.1"
+  "engineVersion": "v0.18.14",
+  "sdk": {
+    "source": "python"
+  }
 }
